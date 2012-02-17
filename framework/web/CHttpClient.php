@@ -201,15 +201,91 @@ abstract class CHttpClientMessage extends CComponent
 	}
 }
 
+/**
+ * Class CHttpMessageBody
+ *
+ * @property resource stream
+ * @property CHeaderCollection $headers
+ */
 class CHttpMessageBody extends CComponent
 {
+	/** @var @var resource */
 	private $_stream;
+	/** @var @var CHeaderCollection */
+	private $_headers;
+
+	/**
+	 * @param mixed $content
+	 * @param string $mimeType
+	 */
+	public function __construct($content=null, $mimeType=null)
+	{
+		if($content)
+		{
+			if($mimeType==null&&$content!=null)
+			{
+				if(is_string($content))
+				{
+					fwrite($this->stream,$content);
+					$this->headers->add('Content-Type','text/plaintext');
+				}
+				elseif(is_stream($content))
+				{
+					$this->_stream=$content;
+					$this->headers->add('Content-Type','text/plaintext');
+				}
+				elseif(is_array($content))
+				{
+					fwrite($this->stream,http_build_query($content));
+					$this->headers->add('Content-Type','application/x-www-form-urlencoded');
+				}
+				elseif(is_object($content))
+				{
+					switch(get_class($content))
+					{
+						case 'DOMDocument':
+							fwrite($this->stream,$content->saveXML());
+							if($content->encoding)
+								$this->headers->add('Content-Type','application/xml; charset='.$content->encoding);
+							else
+								$this->headers->add('Content-Type','application/xml');
+							break;
+						default:
+							Yii::log(Yii::t('yii','Unknown class {class} - attempting to send as plain text',array('{class}'=>get_class($content))),CLogger::LEVEL_INFO,'system.web.CHttpMessageBody');
+							fwrite($this->stream,(string)$content);
+							$this->headers->add('Content-Type','text/plaintext');
+							break;
+					}
+				}
+			}
+			else
+			{
+			}
+		}
+	}
 
 	public function getStream()
 	{
 		if(!$this->_stream)
 			$this->_stream=fopen('php://temp','rb+');
 		return $this->_stream;
+	}
+
+	public function setStream($stream)
+	{
+		$this->_stream=$stream;
+	}
+
+	public function setHeaders($headers)
+	{
+		$this->_headers=$headers;
+	}
+
+	public function getHeaders()
+	{
+		if(!$this->_headers)
+			$this->_headers=new CHeaderCollection;
+		return $this->_headers;
 	}
 }
 
