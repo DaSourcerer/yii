@@ -812,6 +812,7 @@ class YiiBase
 		'CJavaScript' => '/web/helpers/CJavaScript.php',
 		'CPradoViewRenderer' => '/web/renderers/CPradoViewRenderer.php',
 		'CViewRenderer' => '/web/renderers/CViewRenderer.php',
+		'CXslViewRenderer' => '/web/renderers/CXslViewRenderer.php',
 		'CWebService' => '/web/services/CWebService.php',
 		'CWebServiceAction' => '/web/services/CWebServiceAction.php',
 		'CWsdlGenerator' => '/web/services/CWsdlGenerator.php',
