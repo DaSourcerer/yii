@@ -7,31 +7,7 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 	 * @var int
 	 */
 	public $xslOptions=0;
-	
-	/**
-	 * @see http://www.php.net/manual/en/class.domdocument.php#domdocument.props.formatoutput
-	 * @var boolean
-	 */
-	public $formatOutput=true;
-	
-	/**
-	 * @see http://www.php.net/manual/en/class.domdocument.php#domdocument.props.preservewhitespace
-	 * @var boolean
-	 */
-	public $preserveWhiteSpace=true;
-	
-	/**
-	 * @see http://www.php.net/manual/en/class.domdocument.php#domdocument.props.substituteentities
-	 * @var boolean
-	 */
-	public $substituteEntities=false;
-	
-	/**
-	 * @see http://www.php.net/manual/en/class.domdocument.php#domdocument.props.validateonparse 
-	 * @var boolean
-	 */
-	public $validateOnParse=false;
-	
+		
 	/**
 	 * The root element' name of the source xml.
 	 * There is little sense in changing this unless you are doing something super fancy with your xsl/t;  
@@ -57,10 +33,6 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 			throw new CException('The php-xsl module is required!');
 		$this->processor=new XSLTProcessor;
 		$this->stylesheet=new DOMDocument;
-		$this->stylesheet->formatOutput=$this->formatOutput;
-		$this->stylesheet->preserveWhiteSpace=$this->preserveWhiteSpace;
-		$this->stylesheet->substituteEntities=$this->substituteEntities;
-		$this->stylesheet->validateOnParse=$this->validateOnParse;
 		parent::init();
 	}
 	
@@ -104,10 +76,10 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 		echo $doc->saveXML();
 		Yii::app()->end();*/
 		
-		$result=$this->processor->transformToXml($doc);
+		$result=$this->processor->transformToXML($doc);
 		if($result===false)
 			throw new CException('Error while transforming ' . $sourceFile);
-		
+
 		if($return)
 			return $result;
 		echo $result;
