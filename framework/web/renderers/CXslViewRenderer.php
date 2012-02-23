@@ -65,8 +65,6 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 			$root->appendChild($node);
 		}
 		
-		$this->serialize($doc, $root, $data, $this->recursionDepth);
-		
 		$attr=$doc->createAttributeNS('http://xml.yiiframework.com', 'yii:memory');
 		$attr->appendChild($doc->createTextNode(Yii::getLogger()->getMemoryUsage()));
 		$root->appendChild($attr);
