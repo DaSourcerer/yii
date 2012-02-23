@@ -14,6 +14,8 @@
 	<link rel="stylesheet" type="text/css" href="<?php echo Yii::app()->request->baseUrl; ?>/css/main.css" />
 	<link rel="stylesheet" type="text/css" href="<?php echo Yii::app()->request->baseUrl; ?>/css/form.css" />
 
+	<link rel="alternate" type="application/rss+xml" title="<?php echo Yii::app()->name; ?> RSS Feed" href="<?php echo Yii::app()->createUrl('feed/rss'); ?>" />
+	<link rel="alternate" type="application/atom+xml" title="<?php echo Yii::app()->name; ?> Atom Feed" href="<?php echo Yii::app()->createUrl('feed/atom'); ?>" />
 	<title><?php echo CHtml::encode($this->pageTitle); ?></title>
 </head>
 
