@@ -16,6 +16,11 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 	public $rootElement='data';
 	
 	/**
+	 * Limit for relation depth
+	 * @var int
+	 */
+	public $recursionDepth=3;
+	/**
 	 * The XSL/T processor
 	 * @var XSLTProcessor
 	 */
@@ -50,7 +55,7 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 			if(is_array($value) || $value instanceof CModel)
 			{
 				$node=$doc->createElement($name);
-				$this->serialize($doc, $node, $value);
+				$this->serialize($doc, $node, $value, $this->recursionDepth);
 			}
 			else
 			{
@@ -60,7 +65,7 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 			$root->appendChild($node);
 		}
 		
-		$this->serialize($doc, $root, $data);
+		$this->serialize($doc, $root, $data, $this->recursionDepth);
 		
 		$attr=$doc->createAttributeNS('http://xml.yiiframework.com', 'yii:memory');
 		$attr->appendChild($doc->createTextNode(Yii::getLogger()->getMemoryUsage()));
@@ -91,15 +96,17 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 	 * @param DOMNode $parent
 	 * @param mixed $data
 	 */
-	private function serialize(DOMDocument &$doc, DOMNode &$parent, $data)
+	private function serialize(DOMDocument &$doc, DOMNode &$parent, $data, $level)
 	{
 		foreach($data as $name=>$value)
 		{
 			$node;
 			if($value instanceof CModel)
 			{
+				if($level==0)
+					continue;
 				$node=$doc->createElement(get_class($value));
-				$this->serialize($doc, $node, $value);
+				$this->serialize($doc, $node, $value, $level--);
 			}
 			else
 			{
@@ -108,7 +115,7 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 				
 				$node=$doc->createAttribute($name);
 				if(is_array($value))
-					$this->serialize($doc, $node, $value);
+					$this->serialize($doc, $node, $value, $level);
 				else
 					$node->appendChild($doc->createTextNode($value));
 			}
