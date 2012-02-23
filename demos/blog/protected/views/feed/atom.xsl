@@ -25,7 +25,7 @@
 			<title><xsl:value-of select="@title"/></title>
 			<link href="http://yiframework.com/" />
 			<id><xsl:value-of select="@id"/></id>
-			<updated><xsl:value-of select="php:function('date', 'c', number(@create_time))"/></updated>
+			<updated><xsl:value-of select="php:function('date', 'c', number(@update_time))"/></updated>
 			<content><xsl:value-of select="@content" /></content>
 		</entry>
 	</xsl:template>
