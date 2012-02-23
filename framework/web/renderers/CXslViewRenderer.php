@@ -89,35 +89,72 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 	}
 	
 	/**
-	 * 
+	 *
 	 * @param DOMDocument $doc
 	 * @param DOMNode $parent
 	 * @param mixed $data
 	 */
 	private function serialize(DOMDocument &$doc, DOMNode &$parent, $data, $level)
 	{
-		foreach($data as $name=>$value)
+		if($data===null)
+			return;
+		if($data instanceof CModel)
 		{
-			$node;
-			if($value instanceof CModel)
+			if($level<=0)
+				return;
+			$this->serialize($doc, $parent, $data->attributes, $level-1);
+			if($data instanceof CActiveRecord)
 			{
-				if($level==0)
-					continue;
-				$node=$doc->createElement(get_class($value));
-				$this->serialize($doc, $node, $value, $level--);
+				foreach($data->relations() as $name=>$relation)
+				{
+					switch($relation[0])
+					{
+						case CActiveRecord::STAT:
+							$attr=$doc->createAttribute($name);
+							$attr->appendChild($doc->createTextNode($data->getRelated($name)));
+							$parent->appendChild($attr);
+							break;
+						case CActiveRecord::HAS_ONE:
+						case CActiveRecord::BELONGS_TO:
+							$relNode=$doc->createElement($name);
+							$this->serialize($doc, $relNode, $data->getRelated($name), $level-1);
+							$parent->appendChild($relNode);
+							break;
+						case CActiveRecord::HAS_MANY:
+						case CActiverecord::MANY_MANY:
+							foreach($data->getRelated($name) as $model)
+							{
+								$relNode=$doc->createElement($name);
+								$this->serialize($doc, $relNode, $model, $level-1);
+								$parent->appendChild($relNode);
+							}
+							break;
+						default:
+							Yii::log("Found relation of unknown type {$relation[0]}. Help?", CLogger::LEVEL_WARNING);
+					}
+				}
 			}
-			else
+		}
+		else
+		{
+			foreach($data as $name=>$value)
 			{
 				if(is_numeric($name))
-					$name = 'child'.$name;
+					$name='child'.$name;
 				
-				$node=$doc->createAttribute($name);
+				
 				if(is_array($value))
+				{
+					$node->createElement($name);
 					$this->serialize($doc, $node, $value, $level);
+				}
 				else
+				{
+					$node=$doc->createAttribute($name);
 					$node->appendChild($doc->createTextNode($value));
+				}
+				$parent->appendChild($node);
 			}
-			$parent->appendChild($node);
 		}
 	}
 }
