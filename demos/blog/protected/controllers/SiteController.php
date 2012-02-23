@@ -91,14 +91,4 @@ class SiteController extends Controller
 		Yii::app()->user->logout();
 		$this->redirect(Yii::app()->homeUrl);
 	}
-	
-	public function actionRss()
-	{
-		Yii::app()->setComponent('viewRenderer', new CXslViewRenderer);
-		$result=$this->renderPartial('rss', array(
-			'posts'=>Post::model()->findAll(),
-		), true);
-		header('Content-type: application/rss+xml; charset=' . Yii::app()->charset);
-		echo $result;
-	}
 }
