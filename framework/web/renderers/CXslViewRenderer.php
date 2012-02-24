@@ -143,9 +143,14 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 					$name='child'.$name;
 				
 				
-				if(is_array($value))
+				if($value instanceof CModel)
 				{
-					$node->createElement($name);
+					$node=$doc->createElement(get_class($value));
+					$this->serialize($doc, $node, $value, $level-1);
+				}
+				elseif(is_array($value) || $value instanceof CModel)
+				{
+					$node=$doc->createElement($name);
 					$this->serialize($doc, $node, $value, $level);
 				}
 				else
