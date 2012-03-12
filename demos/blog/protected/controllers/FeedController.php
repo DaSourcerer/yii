@@ -1,5 +1,6 @@
 <?php
-class FeedController extends Controller {
+class FeedController extends Controller
+{
 	public function init()
 	{
 		//Please do not blindly copy this. We can only do so because all views reached via this controller are xsl views.
