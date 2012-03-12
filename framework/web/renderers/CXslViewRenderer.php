@@ -19,7 +19,7 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 	 * Limit for relation depth
 	 * @var int
 	 */
-	public $recursionDepth=3;
+	public $recursionDepth=1;
 	/**
 	 * The XSL/T processor
 	 * @var XSLTProcessor
