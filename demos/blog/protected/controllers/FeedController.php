@@ -13,7 +13,7 @@ class FeedController extends Controller
 		$result=$this->renderPartial('rss', array(
 				'posts'=>Post::model()->findAll(),
 		), true);
-		header('Content-type: application/rss+xml; charset=' . Yii::app()->charset);
+		header('Content-Type: application/rss+xml; charset=' . Yii::app()->charset);
 		echo $result;
 	}
 	
@@ -22,7 +22,7 @@ class FeedController extends Controller
 		$result=$this->renderPartial('atom', array(
 				'posts'=>Post::model()->findAll(),
 		), true);
-		header('Content-type: application/atom+xml; charset=' . Yii::app()->charset);
+		header('Content-Type: application/atom+xml; charset=' . Yii::app()->charset);
 		echo $result;
 	}
 }
