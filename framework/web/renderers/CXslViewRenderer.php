@@ -100,9 +100,9 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 			return;
 		if($data instanceof CModel)
 		{
+			$this->serialize($doc, $parent, $data->attributes, $level);
 			if($level<=0)
 				return;
-			$this->serialize($doc, $parent, $data->attributes, $level-1);
 			if($data instanceof CActiveRecord)
 			{
 				foreach($data->relations() as $name=>$relation)
