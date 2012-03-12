@@ -75,9 +75,12 @@ class CXslViewRenderer extends CApplicationComponent implements IViewRenderer {
 		$this->processor->registerPHPFunctions();
 		
 		//TODO: Find another method for debugging the source xml
-		/*header('Content-type: application/xml; charset=' . Yii::app()->charset);
-		echo $doc->saveXML();
-		Yii::app()->end();*/
+		if(0)
+		{
+			header('Content-type: application/xml; charset=' . Yii::app()->charset);
+			echo $doc->saveXML();
+			Yii::app()->end();
+		}
 		
 		$result=$this->processor->transformToXML($doc);
 		if($result===false)
