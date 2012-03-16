@@ -16,6 +16,7 @@
 
 	<link rel="alternate" type="application/rss+xml" title="<?php echo Yii::app()->name; ?> RSS Feed" href="<?php echo Yii::app()->createUrl('feed/rss'); ?>" />
 	<link rel="alternate" type="application/atom+xml" title="<?php echo Yii::app()->name; ?> Atom Feed" href="<?php echo Yii::app()->createUrl('feed/atom'); ?>" />
+	<link rel="search" type="application/opensearchdescription+xml" title="<?php echo Yii::app()->name; ?> Search" href="<?php echo Yii::app()->createUrl('search/plugin'); ?>"/>
 	<title><?php echo CHtml::encode($this->pageTitle); ?></title>
 </head>
 
