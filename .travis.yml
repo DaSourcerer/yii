@@ -13,7 +13,7 @@ before_script:
   - cd tests
   - mysql -u root -e 'CREATE SCHEMA `yii`; GRANT ALL ON `yii`.* TO test@localhost IDENTIFIED BY "test"; FLUSH PRIVILEGES;'
   - mysql -u root -D yii < framework/db/data/mysql.sql
-  - psql -c 'CREATE ROLE test WITH PASSWORD 'test' LOGIN; CREATE DATABASE yii WITH OWNER = test; GRANT ALL PRIVILEGES ON DATABASE yii TO test;' -U postgres
+  - psql -c 'CREATE ROLE test WITH PASSWORD "test" LOGIN; CREATE DATABASE yii WITH OWNER = test; GRANT ALL PRIVILEGES ON DATABASE yii TO test;' -U postgres
   - psql -d yii -f framework/db/data/postgres.sql -U test
   - psql -d yii -f framework/web/auth/schema.sql -U test
   - pecl install memcache
