@@ -9,5 +9,8 @@ before_script:
   - cd tests
   - mysql -u root -e 'CREATE SCHEMA `yii`; GRANT ALL ON `yii`.* TO test@localhost IDENTIFIED BY "test"; FLUSH PRIVILEGES;'
   - mysql -u root -D yii < framework/db/data/mysql.sql
+  - pgsql -c 'CREATE DATABASE yii; CREATE ROLE test PASSWORD 'test'; GRANT ALL ON DATABASE yii TO test;' -U postgres
+  - pgsql -f framework/db/data/postgres.sql -U postgres
+  - pgsql -f framework/web/auth/schema.sql -U postgres
 
 script: phpunit --verbose --coverage-html reports framework
