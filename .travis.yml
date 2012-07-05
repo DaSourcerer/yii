@@ -18,7 +18,7 @@ before_script:
   - psql -c 'GRANT ALL PRIVILEGES ON DATABASE yii TO test;' -U postgres
   - psql -d yii -f framework/db/data/postgres.sql -U test
   - psql -d yii -f framework/web/auth/schema.sql -U test
-  - pecl install memcache
+  - echo 'yes' | pecl install memcache
   - echo "extension=memcache.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s/.*:\s*//"`
 
 script: phpunit --verbose --coverage-html reports framework
