@@ -19,7 +19,7 @@ before_script:
   - psql -q -d yii -f framework/db/data/postgres.sql -U test
   - psql -q -d yii -f framework/web/auth/schema.sql -U test
   - echo 'yes' | pecl install memcache > /dev/null 2>1&
-  - echo "extension=memcache.so" >> `php --ini | grep "Loaded Configuration" | awk "{ print $4 }"`
-  - tail `php --ini | grep "Loaded Configuration" | awk "{ print $4 }"`
+  - echo "extension=memcache.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s/\.+:\s*//"`
+  - echo `php --ini | grep "Loaded Configuration" | awk "{ print $4 }"`
 
 script: phpunit --colors --coverage-html reports framework
