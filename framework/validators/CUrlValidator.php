@@ -44,6 +44,13 @@ class CUrlValidator extends CValidator
 	public $allowEmpty=true;
 
 	/**
+	 * @var boolean whther to check if the hostname of the URL resolves to an IP address. Defaults to false.
+	 * To enable it, make sure the function 'dns_get_record' is available in your PHP installation.
+	 * @since 1.1.11
+	 */
+	public $checkDNS=false;
+	
+	/**
 	 * Validates the attribute of the object.
 	 * If there is any error, the error message is added to the object.
 	 * @param CModel $object the object being validated
@@ -83,8 +90,15 @@ class CUrlValidator extends CValidator
 			else
 				$pattern=$this->pattern;
 
-			if(preg_match($pattern,$value))
-				return $value;
+			$valid=preg_match($pattern,$value)===1;
+			if($valid && $this->checkDNS && function_exists('dns_get_record'))
+			{
+				if(($parsedUrl=parse_url($value))===false)
+					return false;
+				$records=dns_get_record($parsedUrl['host'], DNS_A|DNS_AAAA);
+				$valid=($records!==false)&&!empty($records);
+			}
+			return $valid;
 		}
 		return false;
 	}
