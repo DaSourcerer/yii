@@ -44,10 +44,10 @@ class CConfigurationTest extends CTestCase
 	public function testLoadFromFile()
 	{
 		$config=new CConfiguration;
-		$this->assertTrue($config->toArray()===array());
+		$this->assertEmpty($config->toArray());
 		$config->loadFromFile($this->configFile);
 		$data=include($this->configFile);
-		$this->assertTrue($config->toArray()===$data);
+		$this->assertEquals($data, $config->toArray());
 	}
 
 	public function testSaveAsString()
@@ -55,37 +55,42 @@ class CConfigurationTest extends CTestCase
 		$config=new CConfiguration($this->configFile);
 		$str=$config->saveAsString();
 		eval("\$data=$str;");
-		$this->assertTrue($config->toArray()===$data);
+		$this->assertEquals($data, $config->toArray());
 	}
 
 	public function testApplyTo()
 	{
 		$config=new CConfiguration($this->configFile);
 		$object=new MyClass;
+		
+		$this->assertFalse(isset($object->param1));
+		$this->assertFalse(isset($object->param2));
+		$this->assertFalse(isset($object->param3));
+		$this->assertFalse(isset($object->blockquote));
+		
 		$config->applyTo($object);
-		$this->assertTrue($object->param1==='value1');
-		$this->assertTrue($object->param2===false);
-		$this->assertTrue($object->param3===123);
-		$this->assertTrue($object->backquote==="\\back'quote'");
-		/*
-		$this->assertTrue($object->object->param1===null);
-		$this->assertTrue($object->object->param2==='123');
-		$this->assertTrue($object->object->param3===array('param1'=>'kkk','ddd',''));
-		*/
+		
+		$this->assertEquals('value1', $object->param1);
+		$this->assertFalse($object->param2);
+		$this->assertEquals(123, $object->param3);
+		$this->assertEquals("\\back'quote'", $object->backquote);
 	}
 
+	/**
+	 * @expectedException CException
+	 * @expectedExceptionMessage Property "MyClass.invalid" is not defined
+	 */
 	public function testException()
 	{
 		$config=new CConfiguration(array('invalid'=>'value'));
 		$object=new MyClass;
-		$this->setExpectedException('CException');
 		$config->applyTo($object);
 	}
 
 	public function testCreateComponent()
 	{
 		$obj=Yii::createComponent(array('class'=>'MyClass','param2'=>3));
-		$this->assertEquals(get_class($obj),'MyClass');
-		$this->assertEquals($obj->param2,3);
+		$this->assertInstanceof('MyClass', $obj);
+		$this->assertEquals(3, $obj->param2);
 	}
 }
