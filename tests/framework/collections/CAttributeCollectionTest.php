@@ -12,11 +12,14 @@ class CAttributeCollectionTest extends CTestCase
 		$this->assertTrue($collection->canGetProperty('Property'));
 	}
 
-	public function testCanNotGetUndefinedProperty()
+	/**
+	 * @expectedException CException
+	 * @expectedExceptionMessage Property "CAttributeCollection.Property" is not defined.
+	 */
+	public function testCannotGetUndefinedProperty()
 	{
 		$collection = new CAttributeCollection(array(), true);
 		$this->assertFalse($collection->canGetProperty('Property'));
-		$this->setExpectedException('CException');
 		$value=$collection->Property;
 	}
 
@@ -28,10 +31,13 @@ class CAttributeCollectionTest extends CTestCase
 		$this->assertTrue($collection->canSetProperty('Property'));
 	}
 
+	/**
+	 * @expectedException CException
+	 * @expectedExceptionMessage The map is read only
+	 */
 	public function testCanNotSetPropertyIfReadOnly()
 	{
 		$collection = new CAttributeCollection(array(), true);
-		$this->setExpectedException('CException');
 		$collection->Property = 'value';
 	}
 
@@ -49,6 +55,7 @@ class CAttributeCollectionTest extends CTestCase
 		$collection = new CAttributeCollection();
 		$collection->Property = 'value';
 		$collection->caseSensitive=false;
+		$this->assertEquals('value', $collection->itemAt('Property'));
 		$this->assertEquals('value', $collection->itemAt('property'));
 	}
 
@@ -66,6 +73,9 @@ class CAttributeCollectionTest extends CTestCase
 		$this->assertEquals('value', $collection->itemAt('Property'));
 	}
 
+	/**
+	 * @depends testAdd
+	 */
 	public function testRemove()
 	{
 		$collection = new CAttributeCollection();
@@ -74,6 +84,9 @@ class CAttributeCollectionTest extends CTestCase
 		$this->assertEquals(0, count($collection));
 	}
 
+	/**
+	 * @depends testAdd
+	 */
 	public function testUnset(){
 		$collection = new CAttributeCollection();
 		$collection->add('Property', 'value');
@@ -109,6 +122,7 @@ class CAttributeCollectionTest extends CTestCase
     $collection = new CAttributeCollection();
     $item = array('Test'=>'Uppercase');
     $collection->mergeWith($item);
+    $this->assertEquals('Uppercase', $collection->itemAt('Test'));
     $this->assertEquals('Uppercase', $collection->itemAt('test'));
   }
 
