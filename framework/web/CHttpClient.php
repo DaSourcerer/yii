@@ -36,7 +36,7 @@ class CHttpClient extends CApplicationComponent
 	 * 
 	 * @var CHeaderCollection|array
 	 */
-	public $headers;
+	private $_headers;
 	
 	/**
 	 * @var integer the maximum number of redirects to follow. Set to 0 in order to follow no redirects at all.
@@ -46,7 +46,9 @@ class CHttpClient extends CApplicationComponent
 	/**
 	 * @var CHttpClientConnector|array this client's connector
 	 */
-	public $connector;
+	public $_connector=array(
+		'class'=>'CHttpClientConnector',
+	);
 	
 	/**
 	 * @see CApplicationComponent::init()
@@ -55,11 +57,11 @@ class CHttpClient extends CApplicationComponent
 	{
 		parent::init();
 
-		if(!isset($this->headers['User-Agent']))
-			$this->headers['User-Agent']=str_replace('{version}',Yii::getVersion(),self::USER_AGENT_STRING);
+		if(!isset($this->_headers['User-Agent']))
+			$this->_headers['User-Agent']=str_replace('{version}',Yii::getVersion(),self::USER_AGENT_STRING);
 		
-		if(!isset($this->headers['Accept']))
-			$this->headers['Accept']='*/*';
+		if(!isset($this->_headers['Accept']))
+			$this->_headers['Accept']='*/*';
 	}
 	
 	/**
@@ -118,13 +120,24 @@ class CHttpClient extends CApplicationComponent
 			$this->headers=$headers;
 	}
 	
+	public function getHeaders()
+	{
+		return $this->_headers;
+	}
+	
+	public function setConnector($connector)
+	{
+		$this->_connector=$connector;
+	}
+	
 	public function getConnector()
 	{
-		if(is_array($this->connector))
-			$this->connector=Yii::createComponent($this->connector);
-		else if(empty($this->connector))
-			$this->connector=new CHttpClientConnector;
-		return $this->connector;
+		if(is_array($this->_connector))
+		{
+			$this->_connector=Yii::createComponent($this->_connector);
+			$this->_connector->init();
+		}
+		return $this->_connector;
 	}
 }
 
@@ -158,7 +171,17 @@ abstract class CHttpClientMessage extends CComponent
 	/**
 	 * @var mixed the body of this message. Might be empty for some request and response types.
 	 */
-	public $body;	
+	private $_body;
+
+	public function setBody($body)
+	{
+		$this->_body=$body;
+	}
+	
+	public function getBody()
+	{
+		return $this->_body;
+	}
 }
 
 /**
@@ -183,15 +206,15 @@ class CHttpClientResponse extends CHttpClientMessage
 
 class CHttpClientRequest extends CHttpClientMessage
 {
-	public $requestUrl;
+	private $_requestUrl;
 	public $method=CHttpClient::METHOD_GET;
 	
-	public $scheme;
-	public $host;
+	private $_scheme;
+	private $_host;
 	public $port;
-	public $user;
-	public $pass;
-	public $path;
+	private $_user;
+	private $_pass;
+	private $_path='/';
 	public $query;
 	public $fragment;
 	
@@ -212,37 +235,75 @@ class CHttpClientRequest extends CHttpClientMessage
 		$this->requestUrl=$url;
 	}
 	
+	public function getRequestUrl()
+	{
+		return $this->_requestUrl;
+	}
+	
 	public function setScheme($scheme)
 	{
 		if(!in_array($scheme, array('http', 'https')))
 			throw new CException('Unsupported protocol: '.$scheme);
+		$this->_scheme=$scheme;
+	}
+	
+	public function getScheme()
+	{
+		return $this->_scheme;
 	}
 	
 	public function setHost($host)
 	{
-		$this->host=$host;
+		$this->_host=$host;
 		if($this->httpVersion==1.1)
 			$this->headers['Host']=$host;
 	}
 	
+	public function getHost()
+	{
+		return $this->_host;
+	}
+	
 	public function setUser()
 	{
-		$this->user=$user;
+		$this->_user=$user;
 		$this->updateAuthenticationHeader();
+	}
+	
+	public function getUser()
+	{
+		return $this->_user;
 	}
 	
 	public function setPass($pass)
 	{
-		$this->pass=$pass;
+		$this->_pass=$pass;
 		$this->updateAuthenticationHeader();
+	}
+	
+	public function getPass()
+	{
+		return $this->_pass;
+	}
+	
+	public function setPath($path)
+	{
+		$this->_path=$path;
+		if(empty($this->_path))
+			$this->_path='/';
+	}
+	
+	public function getPath()
+	{
+		return $this->_path;
 	}
 	
 	public function setBody($body)
 	{
 		if($this->method==CHttpClient::METHOD_GET)
 			throw new CException("Cannot set body on a GET request");
-		$this->body=$body;
-		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->body,Yii::app()->charset):strlen($this->body);
+		$this->_body=$body;
+		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->_body,Yii::app()->charset):strlen($this->_body);
 	}
 	
 	protected function updateAuthenticationHeader()
@@ -272,7 +333,7 @@ class CHttpClientRequest extends CHttpClientMessage
  * @version $Id$
  * @package system.web
  */
-class CHeaderCollection extends CList {}
+class CHeaderCollection extends CMap {}
 
 class CHttpClientConnector extends CComponent
 {
@@ -293,7 +354,7 @@ class CHttpClientConnector extends CComponent
 	 * commands or if a proxy is being used. Please note that this will directly
 	 * effect the <code>Connection</code> HTTP header.
 	 */
-	public $useConnectionPooling=false;
+	private $_useConnectionPooling=false;
 	
 	protected static $_connections=array();
 	/**
@@ -303,13 +364,10 @@ class CHttpClientConnector extends CComponent
 	
 	public function init()
 	{
-		parent::init();
 		$encodings=array();
 		$filters=stream_get_filters();
-		if(in_array('zlib.*', $filters))
-			push_array($encodings, 'gzip', 'x-gzip', 'deflate');
 		if(in_array('bzip2.*', $filters))
-			push_array($encodings, 'bzip2', 'x-bzip2');
+			array_push($encodings, 'bzip2', 'x-bzip2');
 		
 		if(!empty($encodings))
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
@@ -320,8 +378,8 @@ class CHttpClientConnector extends CComponent
 	
 	public function setUseConnectionPooling($useConnectionPooling)
 	{
-		$this->useConnectionPooling=$useConnectionPooling;
-		if($this->useConnectionPooling)
+		$this->_useConnectionPooling=$useConnectionPooling;
+		if($this->_useConnectionPooling)
 			$this->_headers['Connection']='keep-alive';
 		else
 			$this->_headers['Connection']='close';
@@ -330,7 +388,7 @@ class CHttpClientConnector extends CComponent
 	public function getConnection(CHttpClientRequest $request)
 	{
 		$key='system.web.CHttpClientConnector.dns#'.$request->host;
-		if(($host=$this->getCache()->get($key))===false)
+		if(($host=$this->cache->get($key))===false)
 		{
 			if(defined(AF_INET6))
 				$type=DNS_A|DNS_AAAA;
@@ -361,12 +419,17 @@ class CHttpClientConnector extends CComponent
 	
 	public function getCache()
 	{
-		return Yii::app()->getComponent($this->cacheID);
+		$cache=Yii::app()->getComponent($this->cacheID);
+		if($cache===null)
+			return new CDummyCache;
+		return $cache;
 	}
 	
 	public function perform(CHttpClientRequest $request)
 	{
 		$connection=$this->getConnection($request);
+		
+		$streamFilters=array();
 		
 		$requestString=$this->craftRequestLine($request).CHttpClient::CRLF;
 		$headers=$request->headers;
@@ -380,37 +443,34 @@ class CHttpClientConnector extends CComponent
 		
 		$requestStringLength=(function_exists('mb_strlen')?mb_strlen($requestString,Yii::app()->charset):strlen($requestString));
 		$written=fwrite($connection, $requestString);
-		
+				
 		if($written!=$requestStringLength)
 			Yii::log("Wrote {$written} instead of {$requestStringLength} bytes to stream - possible network error", 'notice', 'system.web.CHttpClientConnector');
 		
 		$response=new CHttpClientResponse;
-		fscanf($connection, 'HTTP/%.1f %d %s', $response->httpVersion, $response->status, $response->message);
+		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
+		sscanf($httpVersion, 'HTTP/%f', $respone->httpVersion);
+		$response->status=intval($status);
+
 		if($response->httpVersion>0.9)
 		{
-			while($line=fgets($connection) && $line!=CHttpClient::CRLF && !feof($connection))
+			$line='';
+			while(($line=fgets($connection))!==false && $line!=CHttpClient::CRLF && !feof($connection))
 			{
-				list($header,$content)=explode(':',$line);
+				@list($header,$content)=explode(':',$line);
 				$response->headers[$header]=trim($content);
 			}
 			
 			if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
-				stream_filter_append($connection, 'dechunk');
+				$streamFilters[]=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
 			
 			if(isset($response->headers['Content-Encoding']))
 			{
 				switch($response->headers['Content-Encoding'])
 				{
-					case 'gzip':
-					case 'x-gzip':
-						stream_filter_append($connection, 'zlib.decode');
-						break;
 					case 'bzip2':
 					case 'x-bzip2':
-						stream_filter_append($connection, 'bzip2.decompress');
-						break;
-					case 'deflate':
-						stream_filter_append($connection, 'zlib.inflate');
+						$streamFilters[]=stream_filter_append($connection, 'bzip2.decompress', STREAM_FILTER_READ);
 						break;
 					default:
 						throw new CException('Unknown content encoding: '.$response->headers['Content-Encoding']);
@@ -420,6 +480,9 @@ class CHttpClientConnector extends CComponent
 		
 		while(!feof($connection))
 			$response->body.=fgets($connection);
+		
+		foreach($streamFilters as $streamFilter)
+			stream_filter_remove($streamFilter);
 		
 		return $response;
 	}
@@ -434,7 +497,7 @@ class CHttpClientConnector extends CComponent
 	
 	protected function connect($host, $port, $ssl=false)
 	{
-		if($this->useConnectionPooling)
+		if($this->_useConnectionPooling)
 		{
 			$key=$ssl.':'.$host.':'.$port;
 			if(!isset(self::$_connections[$key]))
