@@ -374,15 +374,14 @@ class CHttpClientConnector extends CComponent
 		
 		if(in_array('dechunk', $filters))
 			$this->_headers['TE']='chunked';
+		
+		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
 	}
 	
 	public function setUseConnectionPooling($useConnectionPooling)
 	{
 		$this->_useConnectionPooling=$useConnectionPooling;
-		if($this->_useConnectionPooling)
-			$this->_headers['Connection']='keep-alive';
-		else
-			$this->_headers['Connection']='close';
+		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
 	}
 	
 	public function getConnection(CHttpClientRequest $request)
@@ -436,7 +435,7 @@ class CHttpClientConnector extends CComponent
 		$headers->mergeWith($this->_headers);
 		foreach($headers as $header=>$value)
 			$requestString.="{$header}: {$value}".CHttpClient::CRLF;
-		
+				
 		if($request->body)
 			$requestString.=CHttpClient::CRLF.$request->body;
 		$requestString.=CHttpClient::CRLF;
