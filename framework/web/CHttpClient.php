@@ -86,7 +86,7 @@ class CHttpClient extends CApplicationComponent
 		{
 			if($redirects>0)
 			{
-				$request=CHttpClientRequest::fromResponse($response);
+				$request=CHttpClientRequest::fromRedirect($response);
 				return $this->fetchInternal($request, --$redirects);
 			}
 			else
