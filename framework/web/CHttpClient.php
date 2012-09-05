@@ -420,16 +420,18 @@ class CHttpClientConnector extends CComponent
 	
 	public function init()
 	{
+		if(in_array('dechunk', stream_get_filters()))
+			$this->_headers['TE']='chunked';
+
 		$encodings=array();
-		$filters=stream_get_filters();
-		if(in_array('bzip2.*', $filters))
+		if(extension_loaded('zlib'))
+			array_push($encodings, 'gzip', 'x-gzip', 'deflate');
+		if(extension_loaded('bz2'))
 			array_push($encodings, 'bzip2', 'x-bzip2');
 		
 		if(!empty($encodings))
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
 		
-		if(in_array('dechunk', $filters))
-			$this->_headers['TE']='chunked';
 		
 		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
 	}
@@ -531,23 +533,32 @@ class CHttpClientConnector extends CComponent
 			
 			if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
 				$streamFilters[]=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
-			
-			if(isset($response->headers['Content-Encoding']))
-			{
-				switch($response->headers['Content-Encoding'])
-				{
-					case 'bzip2':
-					case 'x-bzip2':
-						$streamFilters[]=stream_filter_append($connection, 'bzip2.decompress', STREAM_FILTER_READ);
-						break;
-					default:
-						throw new CException('Unknown content encoding: '.$response->headers['Content-Encoding']);
-				}
-			}
 		}
 		
 		while(!feof($connection))
 			$response->body.=fgets($connection);
+
+		if(isset($response->headers['Content-Encoding']))
+		{
+			switch($response->headers['Content-Encoding'])
+			{
+				case 'gzip':
+				case 'x-gzip':
+					$response->body=gzdecode($response->body);
+					break;
+				case 'bzip2':
+				case 'x-bzip2':
+					$response->body=bzdecompress($response->body);
+					break;
+				case 'deflate':
+					$response->body=gzuncompress($response->body);
+					break;
+				case 'identity';
+					break;
+				default:
+					throw new CException('Unknown content encoding: '.$response->headers['Content-Encoding']);
+			}
+		}
 		
 		foreach($streamFilters as $streamFilter)
 			stream_filter_remove($streamFilter);
