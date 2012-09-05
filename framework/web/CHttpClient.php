@@ -13,6 +13,9 @@
  * 
  * CHttpClient itself is mostly for higher level management. All the magic is happening in the connectors.
  * 
+ * @property $headers CHeaderCollection|array A collection of headers added to each request
+ * @property $connector CHttpClientConnector|array this client's connector
+ * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @version $Id$
  * @package system.web
@@ -32,21 +35,14 @@ class CHttpClient extends CApplicationComponent
 	const METHOD_CONNECT='CONNECT';
 	const METHOD_PATCH='PATCH';
 	
-	/**
-	 * 
-	 * @var CHeaderCollection|array
-	 */
-	private $_headers;
 	
 	/**
 	 * @var integer the maximum number of redirects to follow. Set to 0 in order to follow no redirects at all.
 	 */
 	public $maxRedirects=3;
 		
-	/**
-	 * @var CHttpClientConnector|array this client's connector
-	 */
-	public $_connector=array(
+	private $_headers;	
+	private $_connector=array(
 		'class'=>'CHttpClientConnector',
 	);
 	
@@ -65,7 +61,10 @@ class CHttpClient extends CApplicationComponent
 	}
 	
 	/**
+	 * Fetch a remote http resource from the given target by the given method
+	 * 
 	 * @param $request CHttpClientRequest|string
+	 * @param $method string
 	 * @return CHttpClientResponse
 	 */
 	public function fetch($request, $method=self::METHOD_GET)
@@ -75,6 +74,13 @@ class CHttpClient extends CApplicationComponent
 		return $this->fetchInternal($request, $this->maxRedirects);
 	}
 	
+	/**
+	 * Perform the actual request and follow redirects
+	 * 
+	 * @param CHttpClientRequest $request
+	 * @param integer $redirects
+	 * @throws CException
+	 */
 	protected function fetchInternal(CHttpClientRequest $request, $redirects)
 	{
 		$headers=new CHeaderCollection($this->headers);
@@ -144,6 +150,8 @@ class CHttpClient extends CApplicationComponent
 /**
  * CHttpClientMessage is the base class for all HTTP messages (i.e. requests and responses)  
  * 
+ * @property $body string the body of this message. Might be empty for some request and response types.
+ * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @version $Id$
  * @package system.web
@@ -168,9 +176,6 @@ abstract class CHttpClientMessage extends CComponent
 	 */
 	public $cookies;
 	
-	/**
-	 * @var mixed the body of this message. Might be empty for some request and response types.
-	 */
 	private $_body;
 
 	public function setBody($body)
@@ -185,7 +190,7 @@ abstract class CHttpClientMessage extends CComponent
 }
 
 /**
- * CHttpClientResponse
+ * CHttpClientResponse encapsules a HTTP response.
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @version $Id$
@@ -204,19 +209,59 @@ class CHttpClientResponse extends CHttpClientMessage
 	public $message;
 }
 
+/**
+ * CHttpClientRequest holds a prepared HTTP request.
+ * 
+ * The attributes {@link requestUrl} and {@link method} are the most important ones
+ * as they control where and how this request should be sent to.
+ * 
+ * By setting {@link requestUrl}, the passed URL will be briefly validated and broken up into its
+ * components. The following attributes will automaticaly be filled with said components: {@link scheme},
+ * {@link host}, {@link port}, {@link user}, {@link pass}, {@link path}, {@link query}, {@link fragment}
+ * 
+ * All of them can be changed freely. 
+ * 
+ * @property $requestUrl string the URL at which this request should be sent to
+ * @property $scheme string the scheme of {@link requestUrl}. This should be either http or https as no other protocols
+ * are supported. An exception will be risen if {@link requestUrl} fails to comply to that.
+ * @property $host string the host part of {@link requestUrl}
+ * @property $user string the username in case authorization is needed in order to access the remote resource. Take note that {@link pass} needs
+ * to be set as well for this to have any effect.
+ * @property $pass string the password in case authorization is needed in order to access the remote resource. Only works if {@link user} has been set, too.
+ * @property $path string the path part of {@link requestUrl}
+ * 
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @version $Id$
+ * @package system.web
+ */
 class CHttpClientRequest extends CHttpClientMessage
 {
-	private $_requestUrl;
+	/**
+	 * @var string the request method
+	 */
 	public $method=CHttpClient::METHOD_GET;
 	
+	/**
+	 * @var integer the port to connect to
+	 */
+	public $port;
+	
+	/**
+	 * @var string additional paramaters passed via the query string
+	 */
+	public $query;
+	
+	/**
+	 * @var string the fragment. This is only here for informational purposes.
+	 */
+	public $fragment;
+	
+	private $_requestUrl;
 	private $_scheme;
 	private $_host;
-	public $port;
 	private $_user;
 	private $_pass;
 	private $_path='/';
-	public $query;
-	public $fragment;
 	
 	public function __construct($requestUrl, $method=CHttpClient::METHOD_GET)
 	{
@@ -306,6 +351,9 @@ class CHttpClientRequest extends CHttpClientMessage
 		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->_body,Yii::app()->charset):strlen($this->_body);
 	}
 	
+	/**
+	 * Keep the authorization header in sync with {@link user} and {@link pass}.
+	 */
 	protected function updateAuthenticationHeader()
 	{
 		if($this->user && $this->pass)
@@ -313,6 +361,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	}
 	
 	/**
+	 * Create a new request from a redirect response
 	 * 
 	 * @param CHttpClientResponse $response
 	 * @return CHttpClientRequest
@@ -335,10 +384,22 @@ class CHttpClientRequest extends CHttpClientMessage
  */
 class CHeaderCollection extends CMap {}
 
+/**
+ * CHttpClientConnector establishes network connectivity and does everything
+ * to push and pull stuff over the wire.
+ * 
+ * @property $useCOnnectionPooling boolean controls if the connector should try to re-use existing
+ * connections within a single script run. This is mostly useful for console
+ * commands or if a proxy is being used. Please note that this will directly
+ * effect the <code>Connection</code> HTTP header.
+ * 
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @version $Id$
+ * @package system.web
+ */
 class CHttpClientConnector extends CComponent
 {
 	/**
-	 * 
 	 * @var string
 	 */
 	public $cacheID='cache';
@@ -348,13 +409,8 @@ class CHttpClientConnector extends CComponent
 	 */
 	public $timeout=5;
 	
-	/**
-	 * @var boolean Controls if the connector should try to re-use existing
-	 * connections within a single script run. This is mostly useful for console
-	 * commands or if a proxy is being used. Please note that this will directly
-	 * effect the <code>Connection</code> HTTP header.
-	 */
 	private $_useConnectionPooling=false;
+	private $_cache;
 	
 	protected static $_connections=array();
 	/**
@@ -397,7 +453,7 @@ class CHttpClientConnector extends CComponent
 			$records=dns_get_record($request->host,$type);
 			
 			if(empty($records))
-				throw new CException("Could not resolve host ".$request->host);
+				throw new CException("Could not resolve host {$request->host} for URL {$request->requestUrl}");
 			
 			if($records[0]['type']==='AAAA')
 				$host='['.$records[0]['ipv6'].']';
@@ -416,14 +472,27 @@ class CHttpClientConnector extends CComponent
 		return $this->connect($host, $port, $request->scheme=='https');
 	}
 	
+	/**
+	 * @return CCache
+	 */
 	public function getCache()
 	{
-		$cache=Yii::app()->getComponent($this->cacheID);
-		if($cache===null)
-			return new CDummyCache;
-		return $cache;
+		if($this->_cache===null)
+		{
+			$this->_cache=Yii::app()->getComponent($this->cacheID);
+			// Fix for the console
+			if($this->_cache===null)
+				$this->_cache=new CDummyCache;
+		}
+		return $this->_cache;
 	}
 	
+	/**
+	 * 
+	 * @param CHttpClientRequest $request
+	 * @throws CException
+	 * @return CHttpCLientResponse
+	 */
 	public function perform(CHttpClientRequest $request)
 	{
 		$connection=$this->getConnection($request);
@@ -520,10 +589,11 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 {
 	public $server;
 	public $port=8080;
-	public $username;
-	public $password;
 	public $authType='Basic';
 	public $ssl=false;
+	
+	private $_username;
+	private $_password;
 	
 	/**
 	 * @var array a list of IPs which should not be reached through the proxy.
@@ -540,16 +610,37 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 		$this->updateAuthorizationHeader();
 	}
 	
+	public function getUsername()
+	{
+		return $this->_username;
+	}
+	
 	public function setPassword($password)
 	{
 		$this->password=$password;
 		$this->updateAuthorizationHeader();
 	}
 	
+	public function getPassword()
+	{
+		return $this->_password;
+	}
+	
 	protected function updateAuthorizationHeader()
 	{
 		if($this->username && $this->password)
 			$this->_headers['Proxy-Authorization']=$this->authType.' '.base64_encode($this->username.':'.$this->password);
+	}
+	
+	protected function craftRequestLine(CHttpClientRequest $request)
+	{
+		$requestUrl= $request->scheme.'://'.$request->host;
+		if($request->port)
+			$requestUrl.=':'.$request->port;
+		$requestUrl.=$request->path;
+		if($request->query)
+			$requestUrl.='?'.$request->query;
+		return sprintf('%s %s HTTP/%.1f', $request->method, $requestUrl, $request->httpVersion);
 	}
 	
 	protected function connect($host, $port, $ssl=false)
