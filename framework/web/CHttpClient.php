@@ -23,7 +23,7 @@
 class CHttpClient extends CApplicationComponent
 {
 	const CRLF="\r\n";
-	const USER_AGENT_STRING='yii/{version} (compatible; +http://yiiframework.com)';
+	const USER_AGENT_STRING='Mozilla/5.0 (compatible; yii/{version}; +http://yiiframework.com)';
 	
 	const METHOD_GET='GET';
 	const METHOD_HEAD='HEAD';
