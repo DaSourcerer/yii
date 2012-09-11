@@ -273,7 +273,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		$parsedUrl=parse_url($url);
 		if($parsedUrl===false)
-			throw new CException('Malformed URL: '.$request->target);
+			throw new CException('Malformed URL: '.$url);
 		
 		foreach($parsedUrl as $key=>$value)
 			$this->$key=$value;
