@@ -610,7 +610,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			{
 				case 'gzip':
 				case 'x-gzip':
-					$response->body=gzdecode($response->body);
+					$response->body=$this->gzdecode($response->body);
 					break;
 				case 'bzip2':
 				case 'x-bzip2':
@@ -622,7 +622,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
                     if(ord($response->body[0]) == 0x78 && in_array(ord($response->body[1]), array(0x01, 0x5e, 0x9c, 0xda)))
 					    $response->body=gzuncompress($response->body);
                     else
-                        $response->body=gzdecode($response->body);
+                        $response->body=$this->gzdecode($response->body);
 					break;
 				case 'identity';
 					break;
@@ -656,6 +656,14 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		if($connection===false)
 			throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
 		return $connection;
+	}
+
+	protected function gzdecode($data)
+	{
+		if(function_exists('gzdecode'))
+			return gzdecode($data);
+		else
+			return gzinflate(substr($data,10));
 	}
 }
 
