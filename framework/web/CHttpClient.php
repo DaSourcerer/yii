@@ -309,7 +309,7 @@ class CHttpClientRequest extends CHttpClientMessage
 		return $this->_host;
 	}
 	
-	public function setUser()
+	public function setUser($user)
 	{
 		$this->_user=$user;
 		$this->updateAuthenticationHeader();
@@ -356,7 +356,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	protected function updateAuthenticationHeader()
 	{
-		if($this->user && $this->pass)
+		if(!empty($this->_user) && !empty($this->_pass))
 			$this->headers['Authorization']='Basic '.base64_encode($this->user.':'.$this->pass);
 	}
 	
@@ -623,7 +623,7 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 	
 	public function setUsername($username)
 	{
-		$this->username=$username;
+		$this->_username=$username;
 		$this->updateAuthorizationHeader();
 	}
 	
@@ -634,7 +634,7 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 	
 	public function setPassword($password)
 	{
-		$this->password=$password;
+		$this->_password=$password;
 		$this->updateAuthorizationHeader();
 	}
 	
@@ -645,8 +645,8 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 	
 	protected function updateAuthorizationHeader()
 	{
-		if($this->username && $this->password)
-			$this->_headers['Proxy-Authorization']=$this->authType.' '.base64_encode($this->username.':'.$this->password);
+		if(!empty($this->_username) && !empty($this->_password))
+			$this->_headers['Proxy-Authorization']=$this->authType.' '.base64_encode($this->_username.':'.$this->_password);
 	}
 	
 	protected function craftRequestLine(CHttpClientRequest $request)
