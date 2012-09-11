@@ -520,7 +520,7 @@ class CHttpClientConnector extends CComponent
 		
 		$response=new CHttpClientResponse;
 		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
-		sscanf($httpVersion, 'HTTP/%f', $respone->httpVersion);
+		sscanf($httpVersion, 'HTTP/%f', $response->httpVersion);
 		$response->status=intval($status);
 
 		if($response->httpVersion>0.9)
