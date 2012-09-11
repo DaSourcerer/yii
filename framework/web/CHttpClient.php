@@ -365,6 +365,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	 * 
 	 * @param CHttpClientResponse $response
 	 * @return CHttpClientRequest
+	 * @throws CException
 	 */
 	public static function fromRedirect(CHttpClientResponse $response)
 	{
