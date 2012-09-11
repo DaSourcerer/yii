@@ -13,8 +13,7 @@
  * 
  * CHttpClient itself is mostly for higher level management. All the magic is happening in the connectors.
  * 
- * @property $headers CHeaderCollection|array A collection of headers added to each request
- * @property $connector CHttpClientConnector|array this client's connector
+ * @property $connector CHttpClientConnector this client's connector
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
@@ -39,8 +38,12 @@ class CHttpClient extends CApplicationComponent
 	 * @var integer the maximum number of redirects to follow. Set to 0 in order to follow no redirects at all.
 	 */
 	public $maxRedirects=3;
-		
-	private $_headers;	
+
+	/**
+	 * @var array A collection of headers added to each request
+	 */
+	public $headers;
+
 	private $_connector=array(
 		'class'=>'CHttpClientConnector',
 	);
@@ -52,11 +55,11 @@ class CHttpClient extends CApplicationComponent
 	{
 		parent::init();
 
-		if(!isset($this->_headers['User-Agent']))
-			$this->_headers['User-Agent']=str_replace('{version}',Yii::getVersion(),self::USER_AGENT_STRING);
+		if(!isset($this->headers['User-Agent']))
+			$this->headers['User-Agent']=str_replace('{version}',Yii::getVersion(),self::USER_AGENT_STRING);
 		
-		if(!isset($this->_headers['Accept']))
-			$this->_headers['Accept']='*/*';
+		if(!isset($this->headers['Accept']))
+			$this->headers['Accept']='*/*';
 	}
 	
 	/**
@@ -74,7 +77,8 @@ class CHttpClient extends CApplicationComponent
 	}
 	
 	/**
-	 * Perform the actual request and follow redirects
+	 * Perform the actual request by delegating it to the connector
+	 * and follow possible redirects
 	 * 
 	 * @param CHttpClientRequest $request
 	 * @param integer $redirects
@@ -100,36 +104,43 @@ class CHttpClient extends CApplicationComponent
 		
 		return $response;
 	}
-	
+
+	/**
+	 * Issue a GET request at the location specified by <code>$request</code>
+	 * This is a convenience method for {@link fetch}
+	 * @param CHttpClientRequest|string $request
+	 * @return CHttpClientResponse
+	 * @see fetch
+	 */
 	public function get($request)
 	{
 		return $this->fetch($request);
 	}
-	
-	
+
+	/**
+	 * Issue a HEAD request at the location specified by <code>$request</code>
+	 * This is a convenience method for {@link fetch}
+	 * @param CHttpClientRequest|string $request
+	 * @return CHttpClientResponse
+	 * @see fetch
+	 */
 	public function head($request)
 	{
 		return $this->fetch($request, self::METHOD_HEAD);
 	}
-	
+
+	/**
+	 * Issue a POST request at the location specified by <code>$request</code>
+	 * This is a convenience method for {@link fetch}
+	 * @param CHttpClientRequest|string $request
+	 * @return CHttpClientResponse
+	 * @see fetch
+	 */
 	public function post($request)
 	{
 		return $this->fetch($request, self::METHOD_POST);
 	}
-	
-	public function setHeaders($headers)
-	{
-		if(is_array($headers))
-			$this->headers=new CHeaderCollection($headers);
-		else
-			$this->headers=$headers;
-	}
-	
-	public function getHeaders()
-	{
-		return $this->_headers;
-	}
-	
+
 	public function setConnector($connector)
 	{
 		$this->_connector=$connector;
