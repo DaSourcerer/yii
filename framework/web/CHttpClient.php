@@ -183,7 +183,7 @@ abstract class CHttpClientMessage extends CComponent
 	/**
 	 * @var array a collection of cookies
 	 */
-	public $cookies;
+	public $cookies=array();
 	
 	private $_body;
 
@@ -195,6 +195,11 @@ abstract class CHttpClientMessage extends CComponent
 	public function getBody()
 	{
 		return $this->_body;
+	}
+
+	public function __construct()
+	{
+		$this->headers= new CHeaderCollection;
 	}
 }
 
