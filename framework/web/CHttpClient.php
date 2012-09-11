@@ -592,7 +592,7 @@ class CHttpClientConnector extends CComponent
 					throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
 				self::$_connections[$key]=$connection;
 			}
-			return self::$_connections[key];
+			return self::$_connections[$key];
 		}
 		
 		$connection=@fsockopen(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout);
