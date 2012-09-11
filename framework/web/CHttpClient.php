@@ -384,8 +384,8 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		if($this->method==CHttpClient::METHOD_GET)
 			throw new CException("Cannot set body on a GET request");
-		$this->_body=$body;
-		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->_body,Yii::app()->charset):strlen($this->_body);
+		$this->body=$body;
+		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->body,Yii::app()->charset):strlen($this->body);
 	}
 	
 	/**
