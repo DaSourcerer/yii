@@ -435,6 +435,59 @@ class CHttpClientRequest extends CHttpClientMessage
 class CHeaderCollection extends CMap {}
 
 /**
+ * Base class for all connectors
+ *
+ * Connectors establish http connections and do their part in resolving host names,
+ * issuing requests and parsing the results.
+ *
+ * Please take note that the capabilities of different connectors might vary: They are free to advertise different
+ * capabilities to servers and modify requests to their liking. They are thus not easily interchangeable.
+ *
+ * @property $cache CCache
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+abstract class CBaseHttpClientConnector extends CComponent
+{
+	/**
+	 * @var integer
+	 */
+	public $timeout=5;
+
+	/**
+	 * @var string
+	 */
+	public $cacheID='cache';
+	private $_cache;
+
+	/**
+	 * Perform the actual HTTP request and return the response
+	 *
+	 * @param CHttpClientRequest $request
+	 * @throws CException
+	 * @return CHttpClientResponse
+	 */
+	abstract function perform(CHttpClientRequest $request);
+
+	/**
+	 * @return CCache
+	 * @see cacheID
+	 */
+	public function getCache()
+	{
+		if($this->_cache===null)
+		{
+			$this->_cache=Yii::app()->getComponent($this->cacheID);
+			// Fix for the console
+			if($this->_cache===null)
+				$this->_cache=new CDummyCache;
+		}
+		return $this->_cache;
+	}
+}
+
+/**
  * CHttpClientConnector establishes network connectivity and does everything
  * to push and pull stuff over the wire.
  * 
@@ -443,26 +496,14 @@ class CHeaderCollection extends CMap {}
  * commands or if a proxy is being used. Please note that this will directly
  * effect the <code>Connection</code> HTTP header.
  *
- * @property $cache CCache
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
-class CHttpClientConnector extends CComponent
+class CHttpClientConnector extends CBaseHttpClientConnector
 {
-	/**
-	 * @var string
-	 */
-	public $cacheID='cache';
-	
-	/**
-	 * @var integer
-	 */
-	public $timeout=5;
-	
 	private $_useConnectionPooling=false;
-	private $_cache;
-	
+
 	protected static $_connections=array();
 	/**
 	 * @var array a set of additional headers set and managed by this connector
@@ -524,28 +565,7 @@ class CHttpClientConnector extends CComponent
 		
 		return $this->connect($host, $port, $request->scheme=='https');
 	}
-	
-	/**
-	 * @return CCache
-	 */
-	public function getCache()
-	{
-		if($this->_cache===null)
-		{
-			$this->_cache=Yii::app()->getComponent($this->cacheID);
-			// Fix for the console
-			if($this->_cache===null)
-				$this->_cache=new CDummyCache;
-		}
-		return $this->_cache;
-	}
-	
-	/**
-	 * 
-	 * @param CHttpClientRequest $request
-	 * @throws CException
-	 * @return CHttpClientResponse
-	 */
+
 	public function perform(CHttpClientRequest $request)
 	{
 		$connection=$this->getConnection($request);
