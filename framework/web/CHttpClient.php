@@ -279,9 +279,10 @@ class CHttpClientRequest extends CHttpClientMessage
 	private $_pass;
 	private $_path='/';
 	
-	public function __construct($requestUrl, $method=CHttpClient::METHOD_GET)
+	public function __construct($requestUrl=null, $method=CHttpClient::METHOD_GET)
 	{
-		$this->requestUrl=$requestUrl;
+		if(!is_null($requestUrl))
+			$this->requestUrl=$requestUrl;
 		$this->method=$method;
 	}
 	
@@ -642,7 +643,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		if($this->_useConnectionPooling)
 		{
 			$key=$ssl.'/'.$host.'/'.$port;
-			if(!isset(self::$_connections[$key]))
+			if(!isset(self::$_connections[$key]) || !is_resource(self::$_connections[$key]))
 			{
 				$connection=@fsockopen(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout);
 				if($connection===false)
