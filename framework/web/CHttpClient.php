@@ -551,7 +551,12 @@ class CHttpClientConnector extends CComponent
 					$response->body=bzdecompress($response->body);
 					break;
 				case 'deflate':
-					$response->body=gzuncompress($response->body);
+                    // Is this really DEFLATE? Some servers seem to advertise RFC 1952 encoded data here, so let's check
+                    // for a zlib header first.
+                    if(ord($response->body[0]) == 0x78 && in_array(ord($response->body[1]), array(0x01, 0x5e, 0x9c, 0xda)))
+					    $response->body=gzuncompress($response->body);
+                    else
+                        $response->body=gzdecode($response->body);
 					break;
 				case 'identity';
 					break;
