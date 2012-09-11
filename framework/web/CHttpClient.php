@@ -641,7 +641,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	{
 		if($this->_useConnectionPooling)
 		{
-			$key=$ssl.':'.$host.':'.$port;
+			$key=$ssl.'/'.$host.'/'.$port;
 			if(!isset(self::$_connections[$key]))
 			{
 				$connection=@fsockopen(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout);
