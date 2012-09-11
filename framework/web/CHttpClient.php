@@ -1,6 +1,6 @@
 <?php
 /**
- * CHttpCLient class file.
+ * CHttpClient class file.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @link http://www.yiiframework.com/
@@ -190,7 +190,7 @@ abstract class CHttpClientMessage extends CComponent
 }
 
 /**
- * CHttpClientResponse encapsules a HTTP response.
+ * CHttpClientResponse encapsulates a HTTP response.
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @version $Id$
@@ -216,7 +216,7 @@ class CHttpClientResponse extends CHttpClientMessage
  * as they control where and how this request should be sent to.
  * 
  * By setting {@link requestUrl}, the passed URL will be briefly validated and broken up into its
- * components. The following attributes will automaticaly be filled with said components: {@link scheme},
+ * components. The following attributes will automatically be filled with said components: {@link scheme},
  * {@link host}, {@link port}, {@link user}, {@link pass}, {@link path}, {@link query}, {@link fragment}
  * 
  * All of them can be changed freely. 
@@ -247,7 +247,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	public $port;
 	
 	/**
-	 * @var string additional paramaters passed via the query string
+	 * @var string additional parameters passed via the query string
 	 */
 	public $query;
 	
@@ -388,7 +388,7 @@ class CHeaderCollection extends CMap {}
  * CHttpClientConnector establishes network connectivity and does everything
  * to push and pull stuff over the wire.
  * 
- * @property $useCOnnectionPooling boolean controls if the connector should try to re-use existing
+ * @property $useConnectionPooling boolean controls if the connector should try to re-use existing
  * connections within a single script run. This is mostly useful for console
  * commands or if a proxy is being used. Please note that this will directly
  * effect the <code>Connection</code> HTTP header.
@@ -493,7 +493,7 @@ class CHttpClientConnector extends CComponent
 	 * 
 	 * @param CHttpClientRequest $request
 	 * @throws CException
-	 * @return CHttpCLientResponse
+	 * @return CHttpClientResponse
 	 */
 	public function perform(CHttpClientRequest $request)
 	{
