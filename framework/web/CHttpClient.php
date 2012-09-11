@@ -181,7 +181,7 @@ abstract class CHttpClientMessage extends CComponent
 	public $headers;
 	
 	/**
-	 * @var CCookieCollection a collection of cookies
+	 * @var array a collection of cookies
 	 */
 	public $cookies;
 	
@@ -215,6 +215,15 @@ class CHttpClientResponse extends CHttpClientMessage
 	 * @var string the HTTP status message. Take note that not every server sends this, so stick to {@link status}
 	 */
 	public $message;
+
+	/**
+	 * Check if this response object carries a status code indicating a HTTP redirect
+	 * @return boolean
+	 */
+	public function isRedirect()
+	{
+		return ($this->status>=301&&$this->status<=303);
+	}
 }
 
 /**
@@ -289,7 +298,22 @@ class CHttpClientRequest extends CHttpClientMessage
 	
 	public function getRequestUrl()
 	{
-		return $this->_requestUrl;
+		$result=$this->scheme.'://';
+		if(!empty($this->_user))
+		{
+			$result.=$this->_user;
+			if(!empty($this->_pass))
+				$result.=':'.$this->_pass;
+			$result.='@';
+		}
+		$result.=$this->_host;
+		if(!empty($this->port))
+			$result.=':'.$this->port;
+		$result.=$this->_path;
+		if(!empty($this->query))
+			$result.='?'.$this->query;
+		if(!empty($this->fragment))
+			$result.='#'.$this->fragment;
 	}
 	
 	public function setScheme($scheme)
@@ -341,8 +365,8 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function setPath($path)
 	{
 		$this->_path=$path;
-		if(empty($this->_path))
-			$this->_path='/';
+		if($this->_path[0]!='/')
+			$this->_path='/'.$this->_path;
 	}
 	
 	public function getPath()
@@ -379,7 +403,26 @@ class CHttpClientRequest extends CHttpClientMessage
 		if(!isset($response->headers['Location']))
 			throw new CException('No redirect location!');
 		
-		return new CHttpClientRequest($response->headers['Location']);
+		$request=new CHttpClientRequest($response->headers['Location']);
+		$request->cookies=$response->cookies;
+		return $request;
+	}
+
+	public function __toString()
+	{
+		$requestUrl=$this->path;
+		if($this->query)
+			$requestUrl.='?'.$this->query;
+		$result=sprintf('%s %s HTTP/%.1f', strtoupper($this->method), $requestUrl, $this->httpVersion).CHttpClient::CRLF;
+		foreach($this->headers as $header=>$value)
+			$result.="{$header}: {$value}".CHttpClient::CRLF;
+		foreach($this->cookies as $cookie)
+			$result.='Cookie: '.$cookie.CHttpClient::CRLF;
+		$result.=CHttpClient::CRLF;
+		if(!empty($this->body))
+			$result.=$this->body;
+		$result.=CHttpClient::CRLF;
+		return $result;
 	}
 }
 
@@ -399,7 +442,9 @@ class CHeaderCollection extends CMap {}
  * connections within a single script run. This is mostly useful for console
  * commands or if a proxy is being used. Please note that this will directly
  * effect the <code>Connection</code> HTTP header.
- * 
+ *
+ * @property $cache CCache
+ *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
@@ -468,7 +513,7 @@ class CHttpClientConnector extends CComponent
 			else
 				$host=$records[0]['ip'];
 			
-			$this->getCache()->set($key, $host, $records[0]['ttl']);
+			$this->cache->set($key, $host, $records[0]['ttl']);
 		}
 		
 		$port=80;
@@ -506,17 +551,8 @@ class CHttpClientConnector extends CComponent
 		$connection=$this->getConnection($request);
 		
 		$streamFilters=array();
-		
-		$requestString=$this->craftRequestLine($request).CHttpClient::CRLF;
-		$headers=$request->headers;
-		$headers->mergeWith($this->_headers);
-		foreach($headers as $header=>$value)
-			$requestString.="{$header}: {$value}".CHttpClient::CRLF;
-				
-		if($request->body)
-			$requestString.=CHttpClient::CRLF.$request->body;
-		$requestString.=CHttpClient::CRLF;
-		
+		$request->headers=CMap::arrayMerge($request->headers, $this->_headers);
+		$requestString=(string)$request;
 		$requestStringLength=(function_exists('mb_strlen')?mb_strlen($requestString,Yii::app()->charset):strlen($requestString));
 		$written=fwrite($connection, $requestString);
 				
@@ -534,7 +570,11 @@ class CHttpClientConnector extends CComponent
 			while(($line=fgets($connection))!==false && $line!=CHttpClient::CRLF && !feof($connection))
 			{
 				@list($header,$content)=explode(':',$line);
-				$response->headers[$header]=trim($content);
+				$content=trim($content);
+				if(strtolower($header)=='set-cookie')
+					$response->cookies[]=$content;
+				else
+					$response->headers[$header]=$content;
 			}
 			
 			if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
@@ -546,7 +586,7 @@ class CHttpClientConnector extends CComponent
 
 		if(isset($response->headers['Content-Encoding']))
 		{
-			switch($response->headers['Content-Encoding'])
+			switch(strtolower($response->headers['Content-Encoding']))
 			{
 				case 'gzip':
 				case 'x-gzip':
@@ -575,14 +615,6 @@ class CHttpClientConnector extends CComponent
 			stream_filter_remove($streamFilter);
 		
 		return $response;
-	}
-	
-	protected function craftRequestLine(CHttpClientRequest $request)
-	{
-		$requestUrl=$request->path;
-		if($request->query)
-			$requestUrl.='?'.$request->query;
-		return sprintf('%s %s HTTP/%.1f', $request->method, $requestUrl, $request->httpVersion);
 	}
 	
 	protected function connect($host, $port, $ssl=false)
@@ -652,17 +684,6 @@ class CHttpClientProxyConnector extends CHttpClientConnector
 	{
 		if(!empty($this->_username) && !empty($this->_password))
 			$this->_headers['Proxy-Authorization']=$this->authType.' '.base64_encode($this->_username.':'.$this->_password);
-	}
-	
-	protected function craftRequestLine(CHttpClientRequest $request)
-	{
-		$requestUrl= $request->scheme.'://'.$request->host;
-		if($request->port)
-			$requestUrl.=':'.$request->port;
-		$requestUrl.=$request->path;
-		if($request->query)
-			$requestUrl.='?'.$request->query;
-		return sprintf('%s %s HTTP/%.1f', $request->method, $requestUrl, $request->httpVersion);
 	}
 	
 	protected function connect($host, $port, $ssl=false)
