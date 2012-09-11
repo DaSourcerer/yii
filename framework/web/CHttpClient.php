@@ -17,7 +17,6 @@
  * @property $connector CHttpClientConnector|array this client's connector
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 class CHttpClient extends CApplicationComponent
@@ -153,7 +152,6 @@ class CHttpClient extends CApplicationComponent
  * @property $body string the body of this message. Might be empty for some request and response types.
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 abstract class CHttpClientMessage extends CComponent
@@ -193,7 +191,6 @@ abstract class CHttpClientMessage extends CComponent
  * CHttpClientResponse encapsulates a HTTP response.
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 class CHttpClientResponse extends CHttpClientMessage
@@ -231,7 +228,6 @@ class CHttpClientResponse extends CHttpClientMessage
  * @property $path string the path part of {@link requestUrl}
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 class CHttpClientRequest extends CHttpClientMessage
@@ -380,7 +376,6 @@ class CHttpClientRequest extends CHttpClientMessage
  * CHeaderCollection
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 class CHeaderCollection extends CMap {}
@@ -395,7 +390,6 @@ class CHeaderCollection extends CMap {}
  * effect the <code>Connection</code> HTTP header.
  * 
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @version $Id$
  * @package system.web
  */
 class CHttpClientConnector extends CComponent
