@@ -604,7 +604,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$line='';
 			while(($line=fgets($connection))!==false && $line!=CHttpClient::CRLF && !feof($connection))
 			{
-				@list($header,$content)=explode(':',$line);
+				@list($header,$content)=explode(':',$line,2);
 				$content=trim($content);
 				if(strtolower($header)=='set-cookie')
 					$response->cookies[]=$content;
