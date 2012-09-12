@@ -509,6 +509,7 @@ abstract class CBaseHttpClientConnector extends CComponent
 class CHttpClientConnector extends CBaseHttpClientConnector
 {
 	private $_useConnectionPooling=false;
+	private $_streamContext;
 
 	protected static $_connections=array();
 	/**
@@ -529,9 +530,10 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		
 		if(!empty($encodings))
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
-		
-		
+
 		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
+
+		$this->_streamContext=stream_context_create();
 	}
 	
 	public function setUseConnectionPooling($useConnectionPooling)
@@ -650,15 +652,15 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$key=$ssl.'/'.$host.'/'.$port;
 			if(!isset(self::$_connections[$key]) || !is_resource(self::$_connections[$key]))
 			{
-				$connection=@fsockopen(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout);
+				$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->_streamContext);
 				if($connection===false)
 					throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
 				self::$_connections[$key]=$connection;
 			}
 			return self::$_connections[$key];
 		}
-		
-		$connection=@fsockopen(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout);
+
+		$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->_streamContext);
 		if($connection===false)
 			throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
 		return $connection;
