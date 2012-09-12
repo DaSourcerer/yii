@@ -535,7 +535,14 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 
 		$this->_streamContext=stream_context_create();
 	}
-	
+
+	public function getStreamContext()
+	{
+		if($this->_streamContext===null)
+			$this->_streamContext=stream_context_create();
+		return $this->_streamContext;
+	}
+
 	public function setUseConnectionPooling($useConnectionPooling)
 	{
 		$this->_useConnectionPooling=$useConnectionPooling;
@@ -652,17 +659,17 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$key=$ssl.'/'.$host.'/'.$port;
 			if(!isset(self::$_connections[$key]) || !is_resource(self::$_connections[$key]))
 			{
-				$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->_streamContext);
+				$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
 				if($connection===false)
-					throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
+					throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
 				self::$_connections[$key]=$connection;
 			}
 			return self::$_connections[$key];
 		}
 
-		$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host, $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->_streamContext);
+		$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
 		if($connection===false)
-			throw new CException("Failed to connect to {$host} ({$errno}): {$errstr}");
+			throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
 		return $connection;
 	}
 
