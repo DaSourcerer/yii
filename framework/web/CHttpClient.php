@@ -586,7 +586,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$connection=$this->getConnection($request);
 		
 		$streamFilters=array();
-		$request->headers=CMap::arrayMerge($request->headers, $this->_headers);
+		$request->headers=CMap::mergeArray($request->headers, $this->_headers);
 		$requestString=(string)$request;
 		$requestStringLength=(function_exists('mb_strlen')?mb_strlen($requestString,Yii::app()->charset):strlen($requestString));
 		$written=fwrite($connection, $requestString);
