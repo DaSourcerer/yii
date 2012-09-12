@@ -654,20 +654,20 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	
 	protected function connect($host, $port, $ssl=false)
 	{
+		$remote_socket=($ssl?'ssl':'tcp').'://'.$host.':'.$port;
 		if($this->_useConnectionPooling)
 		{
-			$key=$ssl.'/'.$host.'/'.$port;
-			if(!isset(self::$_connections[$key]) || !is_resource(self::$_connections[$key]))
+			if(!isset(self::$_connections[$remote_socket]) || !is_resource(self::$_connections[$remote_socket]))
 			{
-				$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
+				$connection=@stream_socket_client($remote_socket, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
 				if($connection===false)
 					throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
-				self::$_connections[$key]=$connection;
+				self::$_connections[$remote_socket]=$connection;
 			}
-			return self::$_connections[$key];
+			return self::$_connections[$remote_socket];
 		}
 
-		$connection=@stream_socket_client(($ssl?'ssl':'tcp').'://'.$host.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
+		$connection=@stream_socket_client($remote_socket, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
 		if($connection===false)
 			throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
 		return $connection;
