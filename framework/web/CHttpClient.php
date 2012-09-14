@@ -95,11 +95,12 @@ class CHttpClient extends CApplicationComponent
 		{
 			if($redirects>0)
 			{
+				Yii::log(Yii::t('yii','Got a redirect to {target} from {source}',array('{target}'=>$response->headers['Location'],'{source}'=>$request->requestUrl)),CLogger::LEVEL_TRACE,'system.web.CHttpClient');
 				$request=CHttpClientRequest::fromRedirect($response);
 				return $this->fetchInternal($request, --$redirects);
 			}
 			else
-				throw new CException('Max number of redirects reached');
+				throw new CException(Yii::t('yii','Maximum number of redirects reached'));
 		}
 		
 		return $response;
@@ -294,7 +295,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		$parsedUrl=parse_url($url);
 		if($parsedUrl===false)
-			throw new CException('Malformed URL: '.$url);
+			throw new CException(Yii::t('yii','Could not parse URL: {url}',array('{url}'=>$url)));
 		
 		foreach($parsedUrl as $key=>$value)
 			$this->$key=$value;
@@ -326,7 +327,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function setScheme($scheme)
 	{
 		if(!in_array($scheme, array('http', 'https')))
-			throw new CException('Unsupported protocol: '.$scheme);
+			throw new CException(Yii::t('yii','Unsupported protocol scheme: {scheme}',array('{scheme}'=>$scheme)));
 		$this->_scheme=$scheme;
 	}
 	
@@ -384,7 +385,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function setBody($body)
 	{
 		if($this->method==CHttpClient::METHOD_GET)
-			throw new CException("Cannot set body on a GET request");
+			throw new CException(Yii::t('yii','Cannot set body on a GET request'));
 		$this->body=$body;
 		$this->headers['Content-Length']=function_exists('mb_strlen')?mb_strlen($this->body,Yii::app()->charset):strlen($this->body);
 	}
@@ -408,8 +409,8 @@ class CHttpClientRequest extends CHttpClientMessage
 	public static function fromRedirect(CHttpClientResponse $response)
 	{
 		if(!isset($response->headers['Location']))
-			throw new CException('No redirect location!');
-		
+			throw new CException(Yii::t('yii','No redirect location given!'));
+
 		$request=new CHttpClientRequest($response->headers['Location']);
 		$request->cookies=$response->cookies;
 		return $request;
@@ -583,12 +584,12 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 					$proxy.=':8080';
 
 				if(!stream_context_set_option($this->_streamContext, 'http', 'proxy', $proxy))
-					throw new CException("Failed to set proxy location: {$proxy}");
+					throw new CException(Yii::t('yii','Failed to set http proxy location: {proxy}',array('{proxy}'=>$proxy)));
 			}
 			foreach($this->ssl as $option=>$value)
 			{
 				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
-					throw new CException("Failed to set SSL option {$option}");
+					throw new CException(Yii::t('yii','Failed to set SSL option {option}', array('{option}'=>$option)));
 			}
 		}
 		return $this->_streamContext;
@@ -690,7 +691,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$written = fwrite($connection, $requestString);
 
 		if ($written != $requestStringLength)
-			Yii::log("Wrote {$written} instead of {$requestStringLength} bytes to stream - possible network error", 'notice', 'system.web.CHttpClientConnector');
+			Yii::log(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$requestStringLength)),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
 	}
 
 	protected function read($connection, CHttpClientResponse &$response, $chunked=false)
