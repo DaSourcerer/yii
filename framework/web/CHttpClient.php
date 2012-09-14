@@ -564,12 +564,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		
 		$streamFilters=array();
 		$request->headers=CMap::mergeArray($request->headers->toArray(), $this->_headers);
-		$requestString=(string)$request;
-		$requestStringLength=(function_exists('mb_strlen')?mb_strlen($requestString,Yii::app()->charset):strlen($requestString));
-		$written=fwrite($connection, $requestString);
-				
-		if($written!=$requestStringLength)
-			Yii::log("Wrote {$written} instead of {$requestStringLength} bytes to stream - possible network error", 'notice', 'system.web.CHttpClientConnector');
+		$this->write($request, $connection);
 		
 		$response=new CHttpClientResponse;
 		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
@@ -628,7 +623,17 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		
 		return $response;
 	}
-	
+
+	protected function write($request, $connection)
+	{
+		$requestString = (string)$request;
+		$requestStringLength = (function_exists('mb_strlen') ? mb_strlen($requestString, Yii::app()->charset) : strlen($requestString));
+		$written = fwrite($connection, $requestString);
+
+		if ($written != $requestStringLength)
+			Yii::log("Wrote {$written} instead of {$requestStringLength} bytes to stream - possible network error", 'notice', 'system.web.CHttpClientConnector');
+	}
+
 	protected function connect($host, $port, $ssl=false)
 	{
 		$remote_socket=($ssl?'ssl':'tcp').'://'.$host.':'.$port;
