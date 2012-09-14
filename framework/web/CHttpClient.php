@@ -511,18 +511,20 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 {
 	private $_useConnectionPooling=false;
 	private $_streamContext;
+	private $_useChunkedStreamFilter=false;
 
 	protected static $_connections=array();
+
+
 	/**
 	 * @var array a set of additional headers set and managed by this connector
 	 */
-	private $_headers=array();
+	private $_headers=array(
+		'TE'=>'chunked',
+	);
 	
 	public function init()
 	{
-		if(in_array('dechunk', stream_get_filters()))
-			$this->_headers['TE']='chunked';
-
 		$encodings=array();
 		if(extension_loaded('zlib'))
 			array_push($encodings, 'gzip', 'x-gzip', 'deflate');
@@ -533,6 +535,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
 
 		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
+		$this->_useChunkedStreamFilter=in_array('dechunk', stream_get_filters());
 	}
 
 	public function getStreamContext()
@@ -562,9 +565,8 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	{
 		$connection=$this->getConnection($request);
 		
-		$streamFilters=array();
 		$request->headers->mergeWith($this->_headers);
-		$this->write($request, $connection);
+		$this->write($connection, $request);
 		
 		$response=new CHttpClientResponse;
 		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
@@ -581,12 +583,18 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			else
 				$response->headers[$header]=$content;
 		}
-			
-		if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
-			$streamFilters[]=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
 
-		while(!feof($connection))
-			$response->body.=fgets($connection);
+		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
+		{
+			if($this->_useChunkedStreamFilter)
+				$filter=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
+			$this->read($connection, $response, !$this->_useChunkedStreamFilter);
+			if(isset($filter))
+				stream_filter_remove($filter);
+		}
+		else
+			$this->read($connection, $response);
+
 
 		if(isset($response->headers['Content-Encoding']))
 		{
@@ -615,13 +623,10 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			}
 		}
 		
-		foreach($streamFilters as $streamFilter)
-			stream_filter_remove($streamFilter);
-		
 		return $response;
 	}
 
-	protected function write($request, $connection)
+	protected function write($connection, CHttpClientRequest $request)
 	{
 		$requestString = (string)$request;
 		$requestStringLength = (function_exists('mb_strlen') ? mb_strlen($requestString, Yii::app()->charset) : strlen($requestString));
@@ -629,6 +634,29 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 
 		if ($written != $requestStringLength)
 			Yii::log("Wrote {$written} instead of {$requestStringLength} bytes to stream - possible network error", 'notice', 'system.web.CHttpClientConnector');
+	}
+
+	protected function read($connection, CHttpClientResponse &$response, $chunked=false)
+	{
+		if($chunked)
+		{
+			$chunkLine=fgets($connection);
+			$splitChunkLine=explode(';', trim($chunkLine), 2);
+			$chunkSize=hexdec($splitChunkLine[0]);
+			while(!feof($connection) && $chunkSize>0)
+			{
+				$response->body.=stream_get_contents($connection, $chunkSize);
+				fseek($connection, 2, SEEK_CUR);
+				$chunkLine=fgets($connection);
+				$splitChunkLine=explode(';', $chunkLine, 2);
+				$chunkSize=hexdec($splitChunkLine[0]);
+			}
+		}
+		else
+			if(isset($response->headers['Content-Length']))
+				$response->body=stream_get_contents($connection, $response->headers['Content-Length']);
+			while(!feof($connection))
+				$response->body.=fgets($connection);
 	}
 
 	protected function connect($host, $port, $ssl=false)
