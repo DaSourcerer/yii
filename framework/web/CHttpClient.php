@@ -319,6 +319,8 @@ class CHttpClientRequest extends CHttpClientMessage
 			$result.='?'.$this->query;
 		if(!empty($this->fragment))
 			$result.='#'.$this->fragment;
+
+		return $result;
 	}
 	
 	public function setScheme($scheme)
