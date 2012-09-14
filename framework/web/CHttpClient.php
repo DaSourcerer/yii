@@ -571,23 +571,20 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		sscanf($httpVersion, 'HTTP/%f', $response->httpVersion);
 		$response->status=intval($status);
 
-		if($response->httpVersion>0.9)
+		$line='';
+		while(($line=fgets($connection))!==false && $line!=CHttpClient::CRLF && !feof($connection))
 		{
-			$line='';
-			while(($line=fgets($connection))!==false && $line!=CHttpClient::CRLF && !feof($connection))
-			{
-				@list($header,$content)=explode(':',$line,2);
-				$content=trim($content);
-				if(strtolower($header)=='set-cookie')
-					$response->cookies[]=$content;
-				else
-					$response->headers[$header]=$content;
-			}
-			
-			if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
-				$streamFilters[]=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
+			@list($header,$content)=explode(':',$line,2);
+			$content=trim($content);
+			if(strtolower($header)=='set-cookie')
+				$response->cookies[]=$content;
+			else
+				$response->headers[$header]=$content;
 		}
-		
+			
+		if(isset($response->headers['Transfer-Encoding']) && $response->headers['Transfer-Encoding']=='chunked')
+			$streamFilters[]=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
+
 		while(!feof($connection))
 			$response->body.=fgets($connection);
 
