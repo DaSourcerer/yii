@@ -91,7 +91,7 @@ class CHttpClient extends CApplicationComponent
 		$request->headers=$headers;
 		$response=$this->connector->perform($request);
 		
-		if(in_array($response->status,array(301, 302, 303)))
+		if($response->isRedirect())
 		{
 			if($redirects>0)
 			{
