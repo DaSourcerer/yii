@@ -551,36 +551,14 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	
 	public function getConnection(CHttpClientRequest $request)
 	{
-		$key='system.web.CHttpClientConnector.dns#'.$request->host;
-		if(($host=$this->cache->get($key))===false)
-		{
-			if(defined(AF_INET6))
-				$type=DNS_A|DNS_AAAA;
-			else
-				$type=DNS_A;
-		
-			$records=dns_get_record($request->host,$type);
-			
-			if(empty($records))
-				throw new CException("Could not resolve host {$request->host} for URL {$request->requestUrl}");
-			
-			if($records[0]['type']==='AAAA')
-				$host='['.$records[0]['ipv6'].']';
-			else
-				$host=$records[0]['ip'];
-			
-			$this->cache->set($key, $host, $records[0]['ttl']);
-		}
-		
 		$port=80;
 		if(isset($request->port))
 			$port=$request->port;
 		else if($request->scheme=='https')
 			$port=443;
 		
-		return $this->connect($host, $port, $request->scheme=='https');
+		return $this->connect($request->host, $port, $request->scheme=='https');
 	}
-
 	public function perform(CHttpClientRequest $request)
 	{
 		$connection=$this->getConnection($request);
