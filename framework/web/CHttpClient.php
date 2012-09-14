@@ -563,7 +563,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$connection=$this->getConnection($request);
 		
 		$streamFilters=array();
-		$request->headers=CMap::mergeArray($request->headers->toArray(), $this->_headers);
+		$request->headers->mergeWith($this->_headers);
 		$this->write($request, $connection);
 		
 		$response=new CHttpClientResponse;
