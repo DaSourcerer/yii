@@ -277,7 +277,6 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	public $fragment;
 	
-	private $_requestUrl;
 	private $_scheme;
 	private $_host;
 	private $_user;
