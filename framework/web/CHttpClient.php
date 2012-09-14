@@ -509,6 +509,22 @@ abstract class CBaseHttpClientConnector extends CComponent
  */
 class CHttpClientConnector extends CBaseHttpClientConnector
 {
+	/**
+	 * @var array options for connections with SSL peers.
+	 * See http://www.php.net/manual/en/context.ssl.php
+	 */
+	public $ssl=array();
+
+	/**
+	 * @var array connection parameters for a proxy server as key/value pairs. The following settings are understood:
+	 *  - host: the IP or hostname of the proxy. Defaults to the local host.
+	 *  - port: The port. Defaults to 8080.
+	 *  - user: The username in case the proxy requires authentication
+	 *  - pass: The password belonging to the username
+	 *  - ssl: Whether the proxy requires a SSL connection or not. Defaults to false.
+	 */
+	public $proxy=array();
+
 	private $_useConnectionPooling=false;
 	private $_streamContext;
 	private $_useChunkedStreamFilter=false;
@@ -541,7 +557,40 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	public function getStreamContext()
 	{
 		if($this->_streamContext===null)
+		{
 			$this->_streamContext=stream_context_create();
+			if(!empty($this->proxy))
+			{
+				if(isset($this->proxy['ssl'])&&$this->proxy['ssl'])
+					$proxy='ssl://';
+				else
+					$proxy='tcp://';
+				if(isset($this->proxy['user']))
+				{
+					$proxy.=$this->proxy['user'];
+					if(isset($this->proxy['pass']))
+						$proxy.=':'.$this->proxy['pass'];
+					$proxy.='@';
+				}
+				if(isset($this->proxy['host']))
+					$proxy.=$this->proxy['host'];
+				else
+					$proxy.='127.0.0.1';
+
+				if(isset($this->proxy['port']))
+					$proxy.=':'.$this->proxy['port'];
+				else
+					$proxy.=':8080';
+
+				if(!stream_context_set_option($this->_streamContext, 'http', 'proxy', $proxy))
+					throw new CException("Failed to set proxy location: {$proxy}");
+			}
+			foreach($this->ssl as $option=>$value)
+			{
+				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
+					throw new CException("Failed to set SSL option {$option}");
+			}
+		}
 		return $this->_streamContext;
 	}
 
