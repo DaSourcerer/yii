@@ -559,7 +559,15 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		else if($request->scheme=='https')
 			$port=443;
 		
-		return $this->connect($request->host, $port, $request->scheme=='https');
+		$remote_socket=($request->scheme=='https'?'ssl':'tcp').'://'.$request->host.':'.$port;
+		if($this->_useConnectionPooling)
+		{
+			if(isset(self::$_connections[$remote_socket]) && feof(self::$_connections[$remote_socket]))
+				return self::$_connections[$remote_socket];
+			return self::$_connections[$remote_socket]=$this->connect($remote_socket);
+		}
+		else
+			return $this->connect($remote_socket);
 	}
 	public function perform(CHttpClientRequest $request)
 	{
@@ -660,24 +668,11 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 					$response->body.=fgets($connection);
 	}
 
-	protected function connect($host, $port, $ssl=false)
+	protected function connect($remote_socket)
 	{
-		$remote_socket=($ssl?'ssl':'tcp').'://'.$host.':'.$port;
-		if($this->_useConnectionPooling)
-		{
-			if(!isset(self::$_connections[$remote_socket]) || !is_resource(self::$_connections[$remote_socket]))
-			{
-				$connection=@stream_socket_client($remote_socket, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
-				if($connection===false)
-					throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
-				self::$_connections[$remote_socket]=$connection;
-			}
-			return self::$_connections[$remote_socket];
-		}
-
 		$connection=@stream_socket_client($remote_socket, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $this->streamContext);
 		if($connection===false)
-			throw new CException("Failed to connect to {$host}:{$port} ({$errno}): {$errstr}");
+			throw new CException("Failed to connect to {$remote_socket} ({$errno}): {$errstr}");
 		return $connection;
 	}
 
