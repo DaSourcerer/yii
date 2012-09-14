@@ -655,8 +655,9 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		else
 			if(isset($response->headers['Content-Length']))
 				$response->body=stream_get_contents($connection, $response->headers['Content-Length']);
-			while(!feof($connection))
-				$response->body.=fgets($connection);
+			else
+				while(!feof($connection))
+					$response->body.=fgets($connection);
 	}
 
 	protected function connect($host, $port, $ssl=false)
