@@ -527,7 +527,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 
 	private $_useConnectionPooling=false;
 	private $_streamContext;
-	private $_useChunkedStreamFilter=false;
+	private $_useDechunkStreamFilter=false;
 
 	protected static $_connections=array();
 
@@ -551,7 +551,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
 
 		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
-		$this->_useChunkedStreamFilter=in_array('dechunk', stream_get_filters());
+		$this->_useDechunkStreamFilter=in_array('dechunk', stream_get_filters());
 	}
 
 	public function getStreamContext()
@@ -643,9 +643,9 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 
 		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
 		{
-			if($this->_useChunkedStreamFilter)
+			if($this->_useDechunkStreamFilter)
 				$filter=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
-			$this->read($connection, $response, !$this->_useChunkedStreamFilter);
+			$this->read($connection, $response, !$this->_useDechunkStreamFilter);
 			if(isset($filter))
 				stream_filter_remove($filter);
 		}
