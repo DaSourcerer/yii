@@ -532,8 +532,6 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			$this->_headers['Accept-Encoding']=implode(', ', $encodings);
 
 		$this->_headers['Connection']=$this->_useConnectionPooling?'keep-alive':'close';
-
-		$this->_streamContext=stream_context_create();
 	}
 
 	public function getStreamContext()
