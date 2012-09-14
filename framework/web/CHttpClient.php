@@ -677,7 +677,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 				case 'identity';
 					break;
 				default:
-					throw new CException('Unknown content encoding: '.$response->headers['Content-Encoding']);
+					throw new CException(Yii::t('yii','Unknown or unsupported content encoding: {encoding}',array('{encoding}'=>$response->headers['Content-Encoding'])));
 			}
 		}
 		
