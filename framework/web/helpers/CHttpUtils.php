@@ -102,9 +102,12 @@ class CHttpUtils
 			$result.=$components['host'];
 		if(isset($components['path']) && !empty($components['path']))
 		{
-			if($components['path']{0}!='/')
-				$result.='/';
-			$result.=$components['path'];
+			$pathComponents=explode('/',$components['path']);
+			array_walk($pathComponents,'urlencode');
+			$path=implode('/',$pathComponents);
+			if($path{0}!='/')
+				$path='/'.$path;
+			$result.=$path;
 		}
 		else if((isset($components['query']) && !empty($components['query'])) || (isset($components['fragment']) && !empty($components['fragment'])))
 			$result.='/';
