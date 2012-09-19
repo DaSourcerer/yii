@@ -32,9 +32,31 @@ class CHttpUtils
 			list($key,$value)=explode('=',$queryPart);
 			$key=urldecode($key);
 			$value=urldecode($value);
-			$result[$key]=$value;
+			if(preg_match_all('/\[([^\]]*)\]/',$key,$matches,PREG_SET_ORDER)>0)
+			{
+				//print_r($matches);
+				$key=substr($key,0,strpos($key,$matches[0][0]));
+				if(!isset($result[$key]))
+					$result[$key]=array();
+				self::parseQueryStringHelper($result[$key],$matches,$value);
+			}
+			else
+				$result[$key]=$value;
 		}
 		return $result;
+	}
+
+	private static function parseQueryStringHelper(&$result,$matches,$value)
+	{
+		$match=array_shift($matches);
+		if(empty($matches))
+			$result[$match[1]]=$value;
+		else
+		{
+			if(!isset($result[$match[1]]))
+				$result[$match[1]]=array();
+			self::parseQueryStringHelper($result[$match[1]],$matches,$value);
+		}
 	}
 
 	/**
@@ -77,8 +99,13 @@ class CHttpUtils
 		if(isset($components['path']))
 		{
 			$pathComponents=explode('/',$components['path']);
-			array_walk($pathComponents, 'urldecode');
-			$components['path']=$pathComponents;
+			$components['path']=array();
+			foreach($pathComponents as &$pathComponent)
+				if(empty($pathComponent))
+					continue;
+				else
+					$components['path'][]=urldecode($pathComponent);
+			$components['path']=implode('/',$components['path']);
 		}
 		if(isset($components['query']))
 			$components['query']=self::parseQueryString($components['query']);
@@ -103,8 +130,13 @@ class CHttpUtils
 		if(isset($components['path']) && !empty($components['path']))
 		{
 			$pathComponents=explode('/',$components['path']);
-			array_walk($pathComponents,'urlencode');
-			$path=implode('/',$pathComponents);
+			$path=array();
+			foreach($pathComponents as &$pathComponent)
+				if(empty($pathComponent))
+					continue;
+				else
+					$path[]=rawurlencode($pathComponent);
+			$path=implode('/',$path);
 			if($path{0}!='/')
 				$path='/'.$path;
 			$result.=$path;
