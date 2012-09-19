@@ -820,6 +820,7 @@ class YiiBase
 		'CFormStringElement' => '/web/form/CFormStringElement.php',
 		'CGoogleApi' => '/web/helpers/CGoogleApi.php',
 		'CHtml' => '/web/helpers/CHtml.php',
+		'CHttpUtils' => '/web/helpers/CHttpUtils.php',
 		'CJSON' => '/web/helpers/CJSON.php',
 		'CJavaScript' => '/web/helpers/CJavaScript.php',
 		'CPradoViewRenderer' => '/web/renderers/CPradoViewRenderer.php',
