@@ -34,6 +34,10 @@ class CHttpClient extends CApplicationComponent {
 	/** @var array a set of headers added to each request */
 	public $headers=array();
 
+	private $_connector=array(
+		'class'=>'CHttpClientConnector',
+	);
+
 	/** @see CApplicationComponent::init() */
 	public function init()
 	{
@@ -86,6 +90,8 @@ class CHttpClient extends CApplicationComponent {
 
 	/**
 	 * @param CHttpClientRequest|string $request
+	 * @param mixed $body
+	 * @param string $mimeType
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.6
 	 */
@@ -116,14 +122,34 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function send($request)
 	{
+		if(is_array($request))
+		{
+			$r=new CHttpClientRequest;
+			foreach($request as $key=>$value)
+				$r->$key=$value;
+			$request=$r;
+		}
+		$headers=new CHeaderCollection($this->headers);
+		$headers->mergeWith($request->headers);
+		$request->headers=$headers;
+		return $this->connector->send($request);
+	}
 
+	public function getConnector()
+	{
+		if(is_array($this->_connector))
+		{
+			$this->_connector=Yii::createComponent($this->_connector);
+			$this->_connector->init();
+		}
+		return $this->_connector;
 	}
 }
 
 /**
  * CHttpClientMessage is the base class for all HTTP messages (i.e. requests and responses)
  *
- * @property $body string the body of this message. Might be empty for some request and response types.
+ * @property CHttpMessageBody $body string the body of this message. Might be empty for some request and response types.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
@@ -170,11 +196,19 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public $message;
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
+	 */
 	public function isInformational()
 	{
 		return ($this->status>=100&&$this->status<200);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2
+	 */
 	public function isSuccessful()
 	{
 		return ($this->status==304||$this->status>=200&&$this->status<300);
@@ -183,17 +217,26 @@ class CHttpClientResponse extends CHttpClientMessage
 	/**
 	 * Check if this response object carries a status code indicating a HTTP redirect
 	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3
 	 */
 	public function isRedirect()
 	{
 		return ($this->status!=304&&$this->status>=300&&$this->status<400);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4
+	 */
 	public function isError()
 	{
 		return ($this->status>=400&&$this->status<500);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
+	 */
 	public function isServerError()
 	{
 		return $this->status>=500;
@@ -226,9 +269,16 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function __construct($url=null, $method=CHttpClient::METHOD_GET)
 	{
 		$this->url=$url;
+		$this->method=$method;
 	}
 }
 
+/**
+ * CHeaderCollection
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
 class CHeaderCollection extends CMap {}
 
 /**
@@ -246,7 +296,7 @@ class CUrl extends CComponent
 	const COMPONENT_SCHEME=0x01;
 	const COMPONENT_USER=0x02;
 	const COMPONENT_PASS=0x04;
-	const COMPONENT_AUTH=0x06; // user+auth
+	const COMPONENT_AUTH=0x06; // user+pass
 	const COMPONENT_HOST=0x08;
 	const COMPONENT_PORT=0x10;
 	const COMPONENT_PATH=0x20;
@@ -280,8 +330,13 @@ class CUrl extends CComponent
 	 */
 	public function __construct($url)
 	{
+		if($url instanceof self)
+			$url=$url->toArray();
+
 		if(is_string($url))
 		{
+			//@todo Although parse_url() is pretty battle-hardened, there could be better ways to parse this.
+			//PEAR::Net_URL2 is using a regex supposedly copied from RFC 3986, Appendix B
 			if(($parsedUrl=@parse_url($url))===false)
 				throw new CException(Yii::t('Failed to parse URL {url}',array('{url}'=>$url)));
 			$url=$parsedUrl;
@@ -434,5 +489,203 @@ class CUrl extends CComponent
 		if(isset($components['fragment']) && !empty($components['fragment']))
 			$result.='#'.$components['fragment'];
 		return $result;
+	}
+}
+
+/**
+ * Base class for all connectors
+ *
+ * Connectors establish http connections and do their part in resolving host names,
+ * issuing requests and parsing the results.
+ *
+ * Please take note that the capabilities of different connectors might vary: They are free to advertise different
+ * capabilities to servers and modify requests to their liking. They are thus not easily interchangeable.
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+abstract class CBaseHttpClientConnector extends CComponent
+{
+	/**
+	 * @var integer
+	 */
+	public $timeout=5;
+
+	/**
+	 * Perform the actual HTTP request and return the response
+	 *
+	 * @param CHttpClientRequest $request
+	 * @throws CException
+	 * @return CHttpClientResponse
+	 */
+	abstract function send(CHttpClientRequest $request);
+}
+
+/**
+ * CHttpClientConnector establishes network connectivity and does everything
+ * to push and pull stuff over the wire.
+ *
+ * @property $useConnectionPooling boolean controls if the connector should try to re-use existing
+ * connections within a single script run. This is mostly useful for console
+ * commands or if a proxy is being used. Please note that this will directly
+ * effect the <code>Connection</code> HTTP header.
+ *
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+class CHttpClientConnector extends CBaseHttpClientConnector
+{
+	/**
+	 * @var array options for connections with SSL peers.
+	 * See http://www.php.net/manual/en/context.ssl.php
+	 */
+	public $ssl=array();
+
+	/**
+	 * @var array connection parameters for a proxy server as key/value pairs. The following settings are understood:
+	 *  - host: the IP or hostname of the proxy. Defaults to the local host.
+	 *  - port: The port. Defaults to 8080.
+	 *  - user: The username in case the proxy requires authentication
+	 *  - pass: The password belonging to the username
+	 *  - ssl: Whether the proxy requires a SSL connection or not. Defaults to false.
+	 */
+	public $proxy=array();
+	public $persistent=true;
+	private $_streamContext;
+	private $_useDechunkStreamFilter=false;
+
+	protected static $_connections=array();
+
+
+	/**
+	 * @var array a set of additional headers set and managed by this connector
+	 */
+	private $_headers=array(
+		'TE'=>'chunked',
+	);
+
+	public function init()
+	{
+		$this->_useDechunkStreamFilter=in_array('dechunk', stream_get_filters());
+	}
+
+	public function getStreamContext()
+	{
+		if($this->_streamContext===null)
+		{
+			$this->_streamContext=stream_context_create();
+			if(!empty($this->proxy))
+			{
+				$proxy=new CUrl(array_merge(array(
+					'scheme'=>'tcp',
+					'host'=>'localhost',
+					'port'=>8080,
+				),$this->proxy));
+
+				if(!stream_context_set_option($this->_streamContext, 'http', 'proxy', $proxy))
+					throw new CException(Yii::t('yii','Failed to set http proxy location: {proxy}',array('{proxy}'=>$proxy)));
+			}
+			foreach($this->ssl as $option=>$value)
+			{
+				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
+					throw new CException(Yii::t('yii','Failed to set SSL option {option}', array('{option}'=>$option)));
+			}
+		}
+		return $this->_streamContext;
+	}
+
+	public function getConnection(CUrl $url)
+	{
+		$url=$url->filter(CUrl::COMPONENT_SCHEME|CUrl::COMPONENT_HOST|Curl::COMPONENT_PORT);
+
+		if($url->scheme='https')
+		{
+			$url->scheme='ssl';
+			if(!isset($url->port))
+				$url->port=443;
+		}
+		else
+		{
+			$url->scheme='tcp';
+			if(!isset($url->port))
+				$url->port=80;
+		}
+
+		$flags=STREAM_CLIENT_CONNECT;
+		if($this->persistent)
+			$flags|=STREAM_CLIENT_PERSISTENT;
+
+		$connection=@stream_socket_client($url, $errno, $errstr, $this->timeout, $flags, $this->streamContext);
+		if($connection===false)
+			throw new CException("Failed to connect to {$url} ({$errno}): {$errstr}");
+		return $connection;
+	}
+
+	public function send(CHttpClientRequest $request)
+	{
+		$connection=$this->getConnection($request->url);
+
+		$request->headers->mergeWith($this->_headers);
+		$this->write($connection, $request);
+
+		$response=new CHttpClientResponse;
+		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
+		sscanf($httpVersion, 'HTTP/%f', $response->httpVersion);
+		$response->status=intval($status);
+
+		while(($line=fgets($connection))!==false && !feof($connection) && !trim($line)=='')
+		{
+			@list($header,$content)=explode(':',$line,2);
+			$content=trim($content);
+			$header=trim($header);
+			$response->headers[$header]=$content;
+		}
+
+		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
+		{
+			if($this->_useDechunkStreamFilter)
+				$filter=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
+			$this->read($connection, $response, !$this->_useDechunkStreamFilter);
+			if(isset($filter))
+				stream_filter_remove($filter);
+		}
+		else
+			$this->read($connection, $response);
+
+		return $response;
+	}
+
+	protected function write($connection, CHttpClientRequest $request)
+	{
+		$requestStringLength = strlen((string)$request);
+		$written = fwrite($connection, $request);
+
+		if ($written != $requestStringLength)
+			Yii::log(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$requestStringLength)),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+	}
+
+	protected function read($connection, CHttpClientResponse &$response, $chunked=false)
+	{
+		if($chunked)
+		{
+			$chunkLine=fgets($connection);
+			$splitChunkLine=explode(';', trim($chunkLine), 2);
+			$chunkSize=hexdec($splitChunkLine[0]);
+			while(!feof($connection) && $chunkSize>0)
+			{
+				$response->body.=stream_get_contents($connection, $chunkSize);
+				fseek($connection, 2, SEEK_CUR);
+				$chunkLine=fgets($connection);
+				$splitChunkLine=explode(';', $chunkLine, 2);
+				$chunkSize=hexdec($splitChunkLine[0]);
+			}
+		}
+		else
+			if(isset($response->headers['Content-Length']))
+				$response->body=stream_get_contents($connection, $response->headers['Content-Length']);
+			else
+				while(!feof($connection))
+					$response->body.=fgets($connection);
 	}
 }
