@@ -348,9 +348,9 @@ class CUrl extends CComponent
 	public function setHost($host)
 	{
 		//@todo create a single instance of idna_convert and reuse that instead of creating a new instance on every call
-		require_once(Yii::getPathOfAlias('system.vendors.idna_convert').DIRECTORY_SEPARATOR.'idna_convert.class.php');
-		$idnaConvert=new idna_convert();
-		$this->_host=$idnaConvert->encode($host);
+		require_once(Yii::getPathOfAlias('system.vendors.Net_IDNA2.Net').DIRECTORY_SEPARATOR.'IDNA2.php');
+		$idna=new Net_IDNA2();
+		$this->_host=$idna->encode($host);
 	}
 
 	public function getHost()
