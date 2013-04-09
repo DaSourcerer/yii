@@ -19,6 +19,8 @@
  * @package system.web
  */
 class CHttpClient extends CApplicationComponent {
+	const CRLF="\r\n";
+
 	const USER_AGENT_STRING='Mozilla/5.0 (compatible; yii/{version}; +http://yiiframework.com)';
 
 	const METHOD_GET='GET';
@@ -129,9 +131,7 @@ class CHttpClient extends CApplicationComponent {
 				$r->$key=$value;
 			$request=$r;
 		}
-		$headers=new CHeaderCollection($this->headers);
-		$headers->mergeWith($request->headers);
-		$request->headers=$headers;
+		$request->headers->mergeWith($request->headers);
 		return $this->connector->send($request);
 	}
 
@@ -279,7 +279,37 @@ class CHttpClientRequest extends CHttpClientMessage
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
-class CHeaderCollection extends CMap {}
+class CHeaderCollection extends CMap {
+	public function add($key,$value)
+	{
+		parent::add(strtolower($key),$value);
+	}
+
+	public function itemAt($key)
+	{
+		return parent::itemAt(strtolower($key));
+	}
+
+	public function remove($key)
+	{
+		return parent::remove(strtolower($key));
+	}
+
+	public function __toString()
+	{
+		$result='';
+		foreach($this->_d as $name=>$values)
+		{
+			$name=implode('-',array_map('ucfirst',explode('-',$name)));
+			$values=(array)$values;
+			foreach($values as $value)
+			{
+				$result.=$name.': '.$value.CHttpClient::CRLF;
+			}
+		}
+		return $result;
+	}
+}
 
 /**
  * CUrl is an object for URL parsing and manipulation. It is in no way related to the {@link http://curl.haxx.se cURL} library
