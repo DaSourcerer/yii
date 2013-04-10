@@ -131,8 +131,16 @@ class CHttpClient extends CApplicationComponent {
 				$r->$key=$value;
 			$request=$r;
 		}
-		$request->headers->mergeWith($request->headers);
+		$request->headers->mergeWith($this->headers);
 		return $this->connector->send($request);
+	}
+
+	/**
+	 * @param array|CBaseHttpClientConnector $connector
+	 */
+	public function setConnector($connector)
+	{
+		$this->_connector=$connector;
 	}
 
 	public function getConnector()
@@ -157,6 +165,10 @@ class CHttpClient extends CApplicationComponent {
 abstract class CHttpClientMessage extends CComponent
 {
 	/**
+	 * @var CHeaderCollection
+	 */
+	private $_headers;
+	/**
 	 * @var float The http protocol version associated with this message. Make
 	 * sure this is either 0.9, 1.0 or 1.1, as there won't be any validation
 	 * for this. If you access this on a response object, don't be surprised to
@@ -164,10 +176,6 @@ abstract class CHttpClientMessage extends CComponent
 	 */
 	public $httpVersion=1.1;
 
-	/**
-	 * @var CHeaderCollection a collection of headers
-	 */
-	public $headers;
 
 	/** @var CHttpMessageBody */
 	public $body;
@@ -175,6 +183,21 @@ abstract class CHttpClientMessage extends CComponent
 	public function __construct()
 	{
 		$this->headers=new CHeaderCollection;
+	}
+
+	public function setHeaders($headers)
+	{
+		if(is_array($headers))
+			$this->_headers=new CHeaderCollection($headers);
+		else
+			$this->_headers=$headers;
+	}
+
+	public function getHeaders()
+	{
+		if(!$this->_headers)
+			$this->_headers=new CHeaderCollection;
+		return $this->_headers;
 	}
 }
 
