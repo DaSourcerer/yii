@@ -590,12 +590,6 @@ abstract class CBaseHttpClientConnector extends CComponent
  * CHttpClientConnector establishes network connectivity and does everything
  * to push and pull stuff over the wire.
  *
- * @property $useConnectionPooling boolean controls if the connector should try to re-use existing
- * connections within a single script run. This is mostly useful for console
- * commands or if a proxy is being used. Please note that this will directly
- * effect the <code>Connection</code> HTTP header.
- *
- *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
@@ -617,11 +611,8 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	 */
 	public $proxy=array();
 	public $persistent=true;
+
 	private $_streamContext;
-	private $_useDechunkStreamFilter=false;
-
-	protected static $_connections=array();
-
 
 	/**
 	 * @var array a set of additional headers set and managed by this connector
