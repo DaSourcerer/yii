@@ -317,7 +317,11 @@ class CHttpClientRequest extends CHttpClientMessage
 class CHeaderCollection extends CMap {
 	public function add($key,$value)
 	{
-		parent::add(strtolower($key),$value);
+		$key=strtolower($key);
+		if($this->contains($key))
+			parent::add($key,array_merge((array)$this->itemAt($key),(array)$value));
+		else
+			parent::add(strtolower($key),$value);
 	}
 
 	public function itemAt($key)
@@ -330,10 +334,15 @@ class CHeaderCollection extends CMap {
 		return parent::remove(strtolower($key));
 	}
 
+	public function contains($key)
+	{
+		return parent::contains(strtolower($key));
+	}
+
 	public function __toString()
 	{
 		$result='';
-		foreach($this->_d as $name=>$values)
+		foreach($this->toArray() as $name=>$values)
 		{
 			$name=implode('-',array_map('ucfirst',explode('-',$name)));
 			$values=(array)$values;
@@ -342,7 +351,7 @@ class CHeaderCollection extends CMap {
 				$result.=$name.': '.$value.CHttpClient::CRLF;
 			}
 		}
-		return $result;
+		return $result.CHttpClient::CRLF;
 	}
 }
 
