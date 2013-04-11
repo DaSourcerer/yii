@@ -19,6 +19,8 @@
  * @package system.web
  */
 class CHttpClient extends CApplicationComponent {
+	const CRLF="\r\n";
+
 	const USER_AGENT_STRING='Mozilla/5.0 (compatible; yii/{version}; +http://yiiframework.com)';
 
 	const METHOD_GET='GET';
@@ -33,6 +35,10 @@ class CHttpClient extends CApplicationComponent {
 
 	/** @var array a set of headers added to each request */
 	public $headers=array();
+
+	private $_connector=array(
+		'class'=>'CHttpClientConnector',
+	);
 
 	/** @see CApplicationComponent::init() */
 	public function init()
@@ -86,6 +92,8 @@ class CHttpClient extends CApplicationComponent {
 
 	/**
 	 * @param CHttpClientRequest|string $request
+	 * @param mixed $body
+	 * @param string $mimeType
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.6
 	 */
@@ -116,20 +124,50 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function send($request)
 	{
+		if(is_array($request))
+		{
+			$r=new CHttpClientRequest;
+			foreach($request as $key=>$value)
+				$r->$key=$value;
+			$request=$r;
+		}
+		$request->headers->mergeWith($this->headers);
+		return $this->connector->send($request);
+	}
 
+	/**
+	 * @param array|CBaseHttpClientConnector $connector
+	 */
+	public function setConnector($connector)
+	{
+		$this->_connector=$connector;
+	}
+
+	public function getConnector()
+	{
+		if(is_array($this->_connector))
+		{
+			$this->_connector=Yii::createComponent($this->_connector);
+			$this->_connector->init();
+		}
+		return $this->_connector;
 	}
 }
 
 /**
  * CHttpClientMessage is the base class for all HTTP messages (i.e. requests and responses)
  *
- * @property $body string the body of this message. Might be empty for some request and response types.
+ * @property CHttpMessageBody $body string the body of this message. Might be empty for some request and response types.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
 abstract class CHttpClientMessage extends CComponent
 {
+	/**
+	 * @var CHeaderCollection
+	 */
+	private $_headers;
 	/**
 	 * @var float The http protocol version associated with this message. Make
 	 * sure this is either 0.9, 1.0 or 1.1, as there won't be any validation
@@ -138,10 +176,6 @@ abstract class CHttpClientMessage extends CComponent
 	 */
 	public $httpVersion=1.1;
 
-	/**
-	 * @var CHeaderCollection a collection of headers
-	 */
-	public $headers;
 
 	/** @var CHttpMessageBody */
 	public $body;
@@ -149,6 +183,33 @@ abstract class CHttpClientMessage extends CComponent
 	public function __construct()
 	{
 		$this->headers=new CHeaderCollection;
+	}
+
+	public function setHeaders($headers)
+	{
+		if(is_array($headers))
+			$this->_headers=new CHeaderCollection($headers);
+		else
+			$this->_headers=$headers;
+	}
+
+	public function getHeaders()
+	{
+		if(!$this->_headers)
+			$this->_headers=new CHeaderCollection;
+		return $this->_headers;
+	}
+}
+
+class CHttpMessageBody extends CComponent
+{
+	private $_stream;
+
+	public function getStream()
+	{
+		if(!$this->_stream)
+			$this->_stream=fopen('php://temp','rb+');
+		return $this->_stream;
 	}
 }
 
@@ -170,11 +231,19 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public $message;
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
+	 */
 	public function isInformational()
 	{
 		return ($this->status>=100&&$this->status<200);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2
+	 */
 	public function isSuccessful()
 	{
 		return ($this->status==304||$this->status>=200&&$this->status<300);
@@ -183,17 +252,26 @@ class CHttpClientResponse extends CHttpClientMessage
 	/**
 	 * Check if this response object carries a status code indicating a HTTP redirect
 	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3
 	 */
 	public function isRedirect()
 	{
 		return ($this->status!=304&&$this->status>=300&&$this->status<400);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4
+	 */
 	public function isError()
 	{
 		return ($this->status>=400&&$this->status<500);
 	}
 
+	/**
+	 * @return boolean
+	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
+	 */
 	public function isServerError()
 	{
 		return $this->status>=500;
@@ -226,10 +304,47 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function __construct($url=null, $method=CHttpClient::METHOD_GET)
 	{
 		$this->url=$url;
+		$this->method=$method;
 	}
 }
 
-class CHeaderCollection extends CMap {}
+/**
+ * CHeaderCollection
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+class CHeaderCollection extends CMap {
+	public function add($key,$value)
+	{
+		parent::add(strtolower($key),$value);
+	}
+
+	public function itemAt($key)
+	{
+		return parent::itemAt(strtolower($key));
+	}
+
+	public function remove($key)
+	{
+		return parent::remove(strtolower($key));
+	}
+
+	public function __toString()
+	{
+		$result='';
+		foreach($this->_d as $name=>$values)
+		{
+			$name=implode('-',array_map('ucfirst',explode('-',$name)));
+			$values=(array)$values;
+			foreach($values as $value)
+			{
+				$result.=$name.': '.$value.CHttpClient::CRLF;
+			}
+		}
+		return $result;
+	}
+}
 
 /**
  * CUrl is an object for URL parsing and manipulation. It is in no way related to the {@link http://curl.haxx.se cURL} library
@@ -246,7 +361,7 @@ class CUrl extends CComponent
 	const COMPONENT_SCHEME=0x01;
 	const COMPONENT_USER=0x02;
 	const COMPONENT_PASS=0x04;
-	const COMPONENT_AUTH=0x06; // user+auth
+	const COMPONENT_AUTH=0x06; // user+pass
 	const COMPONENT_HOST=0x08;
 	const COMPONENT_PORT=0x10;
 	const COMPONENT_PATH=0x20;
@@ -280,8 +395,13 @@ class CUrl extends CComponent
 	 */
 	public function __construct($url)
 	{
+		if($url instanceof self)
+			$url=$url->toArray();
+
 		if(is_string($url))
 		{
+			//@todo Although parse_url() is pretty battle-hardened, there could be better ways to parse this.
+			//PEAR::Net_URL2 is using a regex supposedly copied from RFC 3986, Appendix B
 			if(($parsedUrl=@parse_url($url))===false)
 				throw new CException(Yii::t('Failed to parse URL {url}',array('{url}'=>$url)));
 			$url=$parsedUrl;
@@ -293,9 +413,9 @@ class CUrl extends CComponent
 	public function setHost($host)
 	{
 		//@todo create a single instance of idna_convert and reuse that instead of creating a new instance on every call
-		require_once(Yii::getPathOfAlias('system.vendors.idna_convert').DIRECTORY_SEPARATOR.'idna_convert.class.php');
-		$idnaConvert=new idna_convert();
-		$this->_host=$idnaConvert->encode($host);
+		require_once(Yii::getPathOfAlias('system.vendors.Net_IDNA2.Net').DIRECTORY_SEPARATOR.'IDNA2.php');
+		$idna=new Net_IDNA2();
+		$this->_host=$idna->encode($host);
 	}
 
 	public function getHost()
@@ -434,5 +554,327 @@ class CUrl extends CComponent
 		if(isset($components['fragment']) && !empty($components['fragment']))
 			$result.='#'.$components['fragment'];
 		return $result;
+	}
+}
+
+/**
+ * Base class for all connectors
+ *
+ * Connectors establish http connections and do their part in resolving host names,
+ * issuing requests and parsing the results.
+ *
+ * Please take note that the capabilities of different connectors might vary: They are free to advertise different
+ * capabilities to servers and modify requests to their liking. They are thus not easily interchangeable.
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+abstract class CBaseHttpClientConnector extends CComponent
+{
+	/**
+	 * @var integer
+	 */
+	public $timeout=5;
+
+	/**
+	 * Perform the actual HTTP request and return the response
+	 *
+	 * @param CHttpClientRequest $request
+	 * @throws CException
+	 * @return CHttpClientResponse
+	 */
+	abstract function send(CHttpClientRequest $request);
+}
+
+/**
+ * CHttpClientConnector establishes network connectivity and does everything
+ * to push and pull stuff over the wire.
+ *
+ * @property $useConnectionPooling boolean controls if the connector should try to re-use existing
+ * connections within a single script run. This is mostly useful for console
+ * commands or if a proxy is being used. Please note that this will directly
+ * effect the <code>Connection</code> HTTP header.
+ *
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ */
+class CHttpClientConnector extends CBaseHttpClientConnector
+{
+	/**
+	 * @var array options for connections with SSL peers.
+	 * See http://www.php.net/manual/en/context.ssl.php
+	 */
+	public $ssl=array();
+
+	/**
+	 * @var array connection parameters for a proxy server as key/value pairs. The following settings are understood:
+	 *  - host: the IP or hostname of the proxy. Defaults to the local host.
+	 *  - port: The port. Defaults to 8080.
+	 *  - user: The username in case the proxy requires authentication
+	 *  - pass: The password belonging to the username
+	 *  - ssl: Whether the proxy requires a SSL connection or not. Defaults to false.
+	 */
+	public $proxy=array();
+	public $persistent=true;
+	private $_streamContext;
+	private $_useDechunkStreamFilter=false;
+
+	protected static $_connections=array();
+
+
+	/**
+	 * @var array a set of additional headers set and managed by this connector
+	 */
+	private $_headers=array(
+		'TE'=>'chunked, trailers',
+	);
+
+	public function init()
+	{
+		$supportedEncodings=array();
+		if(extension_loaded('zlib'))
+			array_push($supportedEncodings, 'gzip', 'deflate');
+
+		if(extension_loaded('bz2'))
+			$supportedEncodings[]='bzip2';
+
+		if(!empty($supportedEncodings))
+			$this->_headers['Accept-Encoding']=implode(', ',$supportedEncodings);
+
+		stream_filter_register('yiidechunk','CDechunkFilter');
+	}
+
+	public function getStreamContext()
+	{
+		if($this->_streamContext===null)
+		{
+			$this->_streamContext=stream_context_create();
+			if(!empty($this->proxy))
+			{
+				$proxy=new CUrl(array_merge(array(
+					'scheme'=>'tcp',
+					'host'=>'localhost',
+					'port'=>8080,
+				),$this->proxy));
+
+				if(!stream_context_set_option($this->_streamContext, 'http', 'proxy', $proxy))
+					throw new CException(Yii::t('yii','Failed to set http proxy location: {proxy}',array('{proxy}'=>$proxy)));
+			}
+			foreach($this->ssl as $option=>$value)
+			{
+				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
+					throw new CException(Yii::t('yii','Failed to set SSL option {option}', array('{option}'=>$option)));
+			}
+		}
+		return $this->_streamContext;
+	}
+
+	public function getConnection(CUrl $url)
+	{
+		$url=$url->filter(CUrl::COMPONENT_SCHEME|CUrl::COMPONENT_HOST|Curl::COMPONENT_PORT);
+
+		if($url->scheme='https')
+		{
+			$url->scheme='ssl';
+			if(!isset($url->port))
+				$url->port=443;
+		}
+		else
+		{
+			$url->scheme='tcp';
+			if(!isset($url->port))
+				$url->port=80;
+		}
+
+		$flags=STREAM_CLIENT_CONNECT;
+		if($this->persistent)
+			$flags|=STREAM_CLIENT_PERSISTENT;
+
+		$connection=@stream_socket_client($url, $errno, $errstr, $this->timeout, $flags, $this->streamContext);
+		if($connection===false)
+			throw new CException("Failed to connect to {$url} ({$errno}): {$errstr}");
+		return $connection;
+	}
+
+	public function send(CHttpClientRequest $request)
+	{
+		$connection=$this->getConnection($request->url);
+
+		$request->headers->mergeWith($this->_headers);
+		$this->write($connection, $request);
+
+		$response=$this->readResponse($connection);
+
+		return $response;
+	}
+
+	/**
+	 * @param $connection
+	 * @return CHttpClientResponse
+	 * @throws CException
+	 */
+	protected function readResponse($connection)
+	{
+		$response=new CHttpClientResponse;
+		if(!($statusLine=@fgets($connection)))
+			throw new CException(Yii::t('yii','Failed to read from connection'));
+
+		if(strpos($statusLine, 'HTTP/')!==0)
+		{
+			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+			$response->httpVersion=0.9;
+			$response->status=200;
+
+			fwrite($response->body->stream,$statusLine);
+			stream_copy_to_stream($connection,$response->body->stream);
+
+			return $response;
+		}
+
+		$statusLine=substr($statusLine, 5);
+		@list($response->httpVersion, $response->status, $response->message)=preg_split('[ \t]+',$statusLine,3);
+		$response->httpVersion=(float)$response->httpVersion;
+		$response->status=(int)$response->status;
+
+		$headers='';
+		while(($line=fgets($connection))!==false && !feof($connection) && trim($line)!='')
+			$headers.=$line;
+
+		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
+		$headers=str_replace("\r\n","\n",$headers);
+		//Unfold headers
+		$headers=preg_replace('/\n[ \t]+/', ' ', $headers);
+		$headers=explode("\n", $headers);
+
+		foreach($headers as $line)
+		{
+			@list($header, $value)=explode(':', $line, 2);
+			$response->headers->add(trim($header), trim($value));
+		}
+
+		$filters=array();
+		$trailers='';
+
+		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['TransferEncoding'])=='chunked')
+			$filters[]=stream_filter_append($connection,'yiidechunk',STREAM_FILTER_READ,array('trailers'=>$trailers));
+
+		if(isset($response->headers['Content-Encoding']))
+		{
+			switch(strtolower($response->headers['Content-Encoding']))
+			{
+				case 'identity':
+					break;
+				case 'bzip2':
+					$filters[]=stream_filter_append($connection,'bzip2.decompress',STREAM_FILTER_READ);
+					break;
+				case 'gzip':
+					fseek($connection,10,SEEK_CUR);
+				case 'deflate':
+					$filters[]=stream_filter_append($connection,'zlib.inflate',STREAM_FILTER_READ);
+					break;
+				default:
+					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+			}
+		}
+
+		stream_copy_to_stream($connection, $response->body->stream);
+
+		foreach($filters as $filter)
+		{
+			stream_filter_remove($filter);
+		}
+
+		return $response;
+	}
+
+	protected function write($connection, CHttpClientRequest $request)
+	{
+		$requestStringLength = strlen((string)$request);
+		$written = fwrite($connection, $request);
+
+		if ($written != $requestStringLength)
+			Yii::log(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$requestStringLength)),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+	}
+}
+
+/**
+ * Class CDechunkFilter
+ *
+ * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
+ */
+class CDechunkFilter extends php_user_filter {
+	const STATE_CHUNKLINE=0x00;
+	const STATE_DATACHUNK=0x01;
+	const STATE_TRAILER=0x02;
+
+	private $_state=self::STATE_CHUNKLINE;
+	private $_chunkSize;
+
+	/**
+	 * @param resource $in
+	 * @param resource $out
+	 * @param integer $consumed
+	 * @param boolean $closing
+	 * @return integer
+	 */
+	public function filter($in, $out, &$consumed, $closing)
+	{
+		while($bucket=stream_bucket_make_writeable($in))
+		{
+			$offset=0;
+			$outbuffer='';
+			while($offset<$bucket->datalen)
+			{
+				switch($this->_state)
+				{
+					case self::STATE_CHUNKLINE:
+						//@todo check for incomplete chunklines
+						$newOffset=strpos($bucket->data, "\r\n",$offset);
+						$chunkLine=substr($bucket->data, $offset, $newOffset-$offset);
+						@list($chunkSize,$chunkExt)=explode(';', $chunkLine, 2);
+						if(!empty($chunkExt))
+							Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CDechunkFilter');
+						$chunkSize=trim($chunkSize);
+						if(!ctype_xdigit($chunkSize))
+							return PSFS_ERR_FATAL;
+
+						$this->_chunkSize=hexdec($chunkSize);
+
+						if($this->_chunkSize==0)
+							$this->_state=self::STATE_TRAILER;
+						else
+							$this->_state=self::STATE_DATACHUNK;
+
+						$offset=$newOffset+2;
+						break;
+					case self::STATE_DATACHUNK:
+						$outbuffer.=substr($bucket->data, $offset, $this->_chunkSize);
+						$offset+=($this->_chunkSize+2);
+						if($offset>$bucket->datalen)
+						{
+							$this->_chunkSize=$offset-$bucket->datalen-2;
+							$this->_state=self::STATE_DATACHUNK;
+						}
+						else
+							$this->_state=self::STATE_CHUNKLINE;
+						break;
+					case self::STATE_TRAILER:
+						if(isset($this->params['trailers']))
+						{
+							if($closing)
+								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset-2);
+							else
+								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset);
+						}
+						$offset=$bucket->datalen;
+						break;
+				}
+			}
+			$consumed+=$bucket->datalen;
+			$bucket->data=$outbuffer;
+			stream_bucket_append($out,$bucket);
+		}
+		return PSFS_PASS_ON;
 	}
 }
