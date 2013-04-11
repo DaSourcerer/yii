@@ -201,6 +201,18 @@ abstract class CHttpClientMessage extends CComponent
 	}
 }
 
+class CHttpMessageBody extends CComponent
+{
+	private $_stream;
+
+	public function getStream()
+	{
+		if(!$this->_stream)
+			$this->_stream=fopen('php://temp','rb+');
+		return $this->_stream;
+	}
+}
+
 /**
  * CHttpClientResponse encapsulates a HTTP response.
  *
@@ -615,12 +627,22 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	 * @var array a set of additional headers set and managed by this connector
 	 */
 	private $_headers=array(
-		'TE'=>'chunked',
+		'TE'=>'chunked, trailers',
 	);
 
 	public function init()
 	{
-		$this->_useDechunkStreamFilter=in_array('dechunk', stream_get_filters());
+		$supportedEncodings=array();
+		if(extension_loaded('zlib'))
+			array_push($supportedEncodings, 'gzip', 'deflate');
+
+		if(extension_loaded('bz2'))
+			$supportedEncodings[]='bzip2';
+
+		if(!empty($supportedEncodings))
+			$this->_headers['Accept-Encoding']=implode(', ',$supportedEncodings);
+
+		stream_filter_register('yiidechunk','CDechunkFilter');
 	}
 
 	public function getStreamContext()
@@ -682,29 +704,86 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$request->headers->mergeWith($this->_headers);
 		$this->write($connection, $request);
 
+		$response=$this->readResponse($connection);
+
+		return $response;
+	}
+
+	/**
+	 * @param $connection
+	 * @return CHttpClientResponse
+	 * @throws CException
+	 */
+	protected function readResponse($connection)
+	{
 		$response=new CHttpClientResponse;
-		list($httpVersion, $status, $response->message) = explode(' ', fgets($connection), 3);
-		sscanf($httpVersion, 'HTTP/%f', $response->httpVersion);
-		$response->status=intval($status);
+		if(!($statusLine=@fgets($connection)))
+			throw new CException(Yii::t('yii','Failed to read from connection'));
 
-		while(($line=fgets($connection))!==false && !feof($connection) && !trim($line)=='')
+		if(strpos($statusLine, 'HTTP/')!==0)
 		{
-			@list($header,$content)=explode(':',$line,2);
-			$content=trim($content);
-			$header=trim($header);
-			$response->headers[$header]=$content;
+			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+			$response->httpVersion=0.9;
+			$response->status=200;
+
+			fwrite($response->body->stream,$statusLine);
+			stream_copy_to_stream($connection,$response->body->stream);
+
+			return $response;
 		}
 
-		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
+		$statusLine=substr($statusLine, 5);
+		@list($response->httpVersion, $response->status, $response->message)=preg_split('[ \t]+',$statusLine,3);
+		$response->httpVersion=(float)$response->httpVersion;
+		$response->status=(int)$response->status;
+
+		$headers='';
+		while(($line=fgets($connection))!==false && !feof($connection) && trim($line)!='')
+			$headers.=$line;
+
+		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
+		$headers=str_replace("\r\n","\n",$headers);
+		//Unfold headers
+		$headers=preg_replace('/\n[ \t]+/', ' ', $headers);
+		$headers=explode("\n", $headers);
+
+		foreach($headers as $line)
 		{
-			if($this->_useDechunkStreamFilter)
-				$filter=stream_filter_append($connection, 'dechunk', STREAM_FILTER_READ);
-			$this->read($connection, $response, !$this->_useDechunkStreamFilter);
-			if(isset($filter))
-				stream_filter_remove($filter);
+			@list($header, $value)=explode(':', $line, 2);
+			$response->headers->add(trim($header), trim($value));
 		}
-		else
-			$this->read($connection, $response);
+
+		$filters=array();
+		$trailers='';
+
+		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['TransferEncoding'])=='chunked')
+			$filters[]=stream_filter_append($connection,'yiidechunk',STREAM_FILTER_READ,array('trailers'=>$trailers));
+
+		if(isset($response->headers['Content-Encoding']))
+		{
+			switch(strtolower($response->headers['Content-Encoding']))
+			{
+				case 'identity':
+					break;
+				case 'bzip2':
+					$filters[]=stream_filter_append($connection,'bzip2.decompress',STREAM_FILTER_READ);
+					break;
+				case 'gzip':
+					fseek($connection,10,SEEK_CUR);
+				case 'deflate':
+					$filters[]=stream_filter_append($connection,'zlib.inflate',STREAM_FILTER_READ);
+					break;
+				default:
+					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+			}
+		}
+
+		stream_copy_to_stream($connection, $response->body->stream);
+
+		foreach($filters as $filter)
+		{
+			stream_filter_remove($filter);
+		}
 
 		return $response;
 	}
@@ -717,28 +796,85 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		if ($written != $requestStringLength)
 			Yii::log(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$requestStringLength)),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
 	}
+}
 
-	protected function read($connection, CHttpClientResponse &$response, $chunked=false)
+/**
+ * Class CDechunkFilter
+ *
+ * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
+ */
+class CDechunkFilter extends php_user_filter {
+	const STATE_CHUNKLINE=0x00;
+	const STATE_DATACHUNK=0x01;
+	const STATE_TRAILER=0x02;
+
+	private $_state=self::STATE_CHUNKLINE;
+	private $_chunkSize;
+
+	/**
+	 * @param resource $in
+	 * @param resource $out
+	 * @param integer $consumed
+	 * @param boolean $closing
+	 * @return integer
+	 */
+	public function filter($in, $out, &$consumed, $closing)
 	{
-		if($chunked)
+		while($bucket=stream_bucket_make_writeable($in))
 		{
-			$chunkLine=fgets($connection);
-			$splitChunkLine=explode(';', trim($chunkLine), 2);
-			$chunkSize=hexdec($splitChunkLine[0]);
-			while(!feof($connection) && $chunkSize>0)
+			$offset=0;
+			$outbuffer='';
+			while($offset<$bucket->datalen)
 			{
-				$response->body.=stream_get_contents($connection, $chunkSize);
-				fseek($connection, 2, SEEK_CUR);
-				$chunkLine=fgets($connection);
-				$splitChunkLine=explode(';', $chunkLine, 2);
-				$chunkSize=hexdec($splitChunkLine[0]);
+				switch($this->_state)
+				{
+					case self::STATE_CHUNKLINE:
+						//@todo check for incomplete chunklines
+						$newOffset=strpos($bucket->data, "\r\n",$offset);
+						$chunkLine=substr($bucket->data, $offset, $newOffset-$offset);
+						@list($chunkSize,$chunkExt)=explode(';', $chunkLine, 2);
+						if(!empty($chunkExt))
+							Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CDechunkFilter');
+						$chunkSize=trim($chunkSize);
+						if(!ctype_xdigit($chunkSize))
+							return PSFS_ERR_FATAL;
+
+						$this->_chunkSize=hexdec($chunkSize);
+
+						if($this->_chunkSize==0)
+							$this->_state=self::STATE_TRAILER;
+						else
+							$this->_state=self::STATE_DATACHUNK;
+
+						$offset=$newOffset+2;
+						break;
+					case self::STATE_DATACHUNK:
+						$outbuffer.=substr($bucket->data, $offset, $this->_chunkSize);
+						$offset+=($this->_chunkSize+2);
+						if($offset>$bucket->datalen)
+						{
+							$this->_chunkSize=$offset-$bucket->datalen-2;
+							$this->_state=self::STATE_DATACHUNK;
+						}
+						else
+							$this->_state=self::STATE_CHUNKLINE;
+						break;
+					case self::STATE_TRAILER:
+						if(isset($this->params['trailers']))
+						{
+							if($closing)
+								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset-2);
+							else
+								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset);
+						}
+						$offset=$bucket->datalen;
+						break;
+				}
 			}
+			$consumed+=$bucket->datalen;
+			$bucket->data=$outbuffer;
+			stream_bucket_append($out,$bucket);
 		}
-		else
-			if(isset($response->headers['Content-Length']))
-				$response->body=stream_get_contents($connection, $response->headers['Content-Length']);
-			else
-				while(!feof($connection))
-					$response->body.=fgets($connection);
+		return PSFS_PASS_ON;
 	}
 }
