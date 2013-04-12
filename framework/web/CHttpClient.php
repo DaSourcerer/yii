@@ -393,7 +393,11 @@ class CHttpClientRequest extends CHttpClientMessage
 class CHeaderCollection extends CMap {
 	public function add($key,$value)
 	{
-		parent::add(strtolower($key),$value);
+		$key=strtolower($key);
+		if($this->contains($key))
+			parent::add($key,array_merge((array)$this->itemAt($key),(array)$value));
+		else
+			parent::add(strtolower($key),$value);
 	}
 
 	public function itemAt($key)
@@ -406,10 +410,15 @@ class CHeaderCollection extends CMap {
 		return parent::remove(strtolower($key));
 	}
 
+	public function contains($key)
+	{
+		return parent::contains(strtolower($key));
+	}
+
 	public function __toString()
 	{
 		$result='';
-		foreach($this->_d as $name=>$values)
+		foreach($this->toArray() as $name=>$values)
 		{
 			$name=implode('-',array_map('ucfirst',explode('-',$name)));
 			$values=(array)$values;
@@ -418,7 +427,7 @@ class CHeaderCollection extends CMap {
 				$result.=$name.': '.$value.CHttpClient::CRLF;
 			}
 		}
-		return $result;
+		return $result.CHttpClient::CRLF;
 	}
 }
 
@@ -666,12 +675,6 @@ abstract class CBaseHttpClientConnector extends CComponent
  * CHttpClientConnector establishes network connectivity and does everything
  * to push and pull stuff over the wire.
  *
- * @property $useConnectionPooling boolean controls if the connector should try to re-use existing
- * connections within a single script run. This is mostly useful for console
- * commands or if a proxy is being used. Please note that this will directly
- * effect the <code>Connection</code> HTTP header.
- *
- *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  */
@@ -693,11 +696,8 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	 */
 	public $proxy=array();
 	public $persistent=true;
+
 	private $_streamContext;
-	private $_useDechunkStreamFilter=false;
-
-	protected static $_connections=array();
-
 
 	/**
 	 * @var array a set of additional headers set and managed by this connector
