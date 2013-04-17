@@ -521,8 +521,7 @@ class CUrl extends CComponent
 	{
 		if($url instanceof self)
 			$url=$url->toArray();
-
-		if(is_string($url))
+		elseif(is_string($url))
 		{
 			//@todo Although parse_url() is pretty battle-hardened, there could be better ways to parse this.
 			//PEAR::Net_URL2 is using a regex supposedly copied from RFC 3986, Appendix B
@@ -530,8 +529,12 @@ class CUrl extends CComponent
 				throw new CException(Yii::t('Failed to parse URL {url}',array('{url}'=>$url)));
 			$url=$parsedUrl;
 		}
-		foreach($url as $key=>$value)
-			$this->$key=$value;
+
+		if(is_array($url))
+		{
+			foreach($url as $key=>$value)
+				$this->$key=$value;
+		}
 	}
 
 	public function setHost($host)
