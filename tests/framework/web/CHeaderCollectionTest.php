@@ -46,4 +46,15 @@ class CHeaderCollectionTest extends CTestCase
 		$headers->add('X-Foo','bar');
 		$this->assertEquals('bar',$headers->remove('X-Foo'));
 	}
+
+	public function testSet()
+	{
+		$headers=new CHeaderCollection;
+		$headers->set('X-Foo','bar');
+		$this->assertEquals(1,$headers->count());
+		$this->assertEquals('bar',$headers['X-Foo']);
+		$headers->set('X-Foo','baz');
+		$this->assertEquals(1,$headers->count());
+		$this->assertEquals('baz',$headers['X-Foo']);
+	}
 }
