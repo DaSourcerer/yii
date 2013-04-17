@@ -373,13 +373,18 @@ class CHttpClientResponse extends CHttpClientMessage
  *
  * The attributes {@link url} and {@link method} are the most important ones
  * as they control where and how this request should be sent to.
+ *
+ * @property CUrl $url
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
+	/**
+	 * @var CUrl
+	 */
+	private $_url;
+
 	/** @var string */
 	public $method=CHttpClient::METHOD_GET;
-	/** @var CUrl */
-	public $url;
 	/** @var CHttpClient */
 	public $client;
 
@@ -395,6 +400,21 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		$this->url=$url;
 		$this->method=$method;
+	}
+
+	public function setUrl($url)
+	{
+		if($url instanceof CUrl)
+			$this->_url=$url;
+		else
+			$this->_url=new CUrl($url);
+	}
+
+	public function getUrl()
+	{
+		if(!$this->_url)
+			$this->_url=new CUrl;
+		return $this->_url;
 	}
 }
 
