@@ -168,6 +168,12 @@ abstract class CHttpClientMessage extends CComponent
 	 * @var CHeaderCollection
 	 */
 	private $_headers;
+
+	/**
+	 * @var CHttpMessageBody
+	 */
+	private $_body;
+
 	/**
 	 * @var float The http protocol version associated with this message. Make
 	 * sure this is either 0.9, 1.0 or 1.1, as there won't be any validation
@@ -175,10 +181,6 @@ abstract class CHttpClientMessage extends CComponent
 	 * find some odd values.
 	 */
 	public $httpVersion=1.1;
-
-
-	/** @var CHttpMessageBody */
-	public $body;
 
 	public function __construct()
 	{
@@ -198,6 +200,18 @@ abstract class CHttpClientMessage extends CComponent
 		if(!$this->_headers)
 			$this->_headers=new CHeaderCollection;
 		return $this->_headers;
+	}
+
+	public function setBody($body)
+	{
+		$this->_body=$body;
+	}
+
+	public function getBody()
+	{
+		if(!$this->_body)
+			$this->_body=new CHttpMessageBody;
+		return $this->_body;
 	}
 }
 
