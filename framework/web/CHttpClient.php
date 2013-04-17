@@ -769,7 +769,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	{
 		$url=$url->filter(CUrl::COMPONENT_SCHEME|CUrl::COMPONENT_HOST|Curl::COMPONENT_PORT);
 
-		if($url->scheme='https')
+		if($url->scheme=='https')
 		{
 			$url->scheme='ssl';
 			if(!isset($url->port))
