@@ -781,6 +781,8 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
 					throw new CException(Yii::t('yii','Failed to set SSL option {option}', array('{option}'=>$option)));
 			}
+			if(!isset($this->ssl['cafile']))
+				stream_context_set_option($this->_streamContext, 'ssl', 'cafile', Yii::getPathOfAlias('system.web').'cacert.pem');
 		}
 		return $this->_streamContext;
 	}
