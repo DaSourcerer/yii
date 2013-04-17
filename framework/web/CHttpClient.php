@@ -400,6 +400,11 @@ class CHeaderCollection extends CMap {
 			parent::add(strtolower($key),$value);
 	}
 
+	public function set($key,$value)
+	{
+		parent::add(strtolower($key),$value);
+	}
+
 	public function itemAt($key)
 	{
 		return parent::itemAt(strtolower($key));
