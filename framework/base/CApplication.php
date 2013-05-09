@@ -37,6 +37,7 @@
  *   This application component is dynamically loaded when needed.</li>
  * <li>{@link getFormat format}: provides a set of commonly used data formatting methods.
  *   This application component is dynamically loaded when needed.</li>
+ * <li>{@link getHttp http}: provides http client functionality</li>
  * </ul>
  *
  * CApplication will undergo the following lifecycles when processing a user request:
@@ -512,6 +513,16 @@ abstract class CApplication extends CModule
 	}
 
 	/**
+	 * Returns the HTTP client component.
+	 * @return CHttpClient the HTTP client component
+	 * @since 1.1.14
+	 */
+	public function getHttp()
+	{
+		return $this->getComponent('http');
+	}
+
+	/**
 	 * @return CController the currently active controller. Null is returned in this base class.
 	 * @since 1.1.8
 	 */
@@ -971,6 +982,9 @@ abstract class CApplication extends CModule
 			),
 			'format'=>array(
 				'class'=>'CFormatter',
+			),
+			'http'=>array(
+				'class'=>'CHttpClient',
 			),
 		);
 
