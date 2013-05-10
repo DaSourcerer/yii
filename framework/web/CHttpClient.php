@@ -17,10 +17,17 @@
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 class CHttpClient extends CApplicationComponent {
+	/**
+	 * HTTP line terminator
+	 */
 	const CRLF="\r\n";
 
+	/**
+	 * The default user agent string CHttpCLient is using in order to identify itself
+	 */
 	const USER_AGENT_STRING='Mozilla/5.0 (compatible; yii/{version}; +http://yiiframework.com)';
 
 	const METHOD_GET='GET';
@@ -33,14 +40,18 @@ class CHttpClient extends CApplicationComponent {
 	const METHOD_CONNECT='CONNECT';
 	const METHOD_PATCH='PATCH';
 
-	/** @var array a set of headers added to each request */
+	/**
+	 * @var array a set of headers added to each request
+	 */
 	public $headers=array();
 
 	private $_connector=array(
 		'class'=>'CHttpClientConnector',
 	);
 
-	/** @see CApplicationComponent::init() */
+	/**
+	 * @see CApplicationComponent::init()
+	 */
 	public function init()
 	{
 		parent::init();
@@ -50,6 +61,12 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Prepare a HTTP GET request
+	 *
+	 * GET requests are the most common ones. They are used to fetch a remote resource.
+	 * This type of request is supposed to be idempotent, i.e. issueing a GET request should not change the state of the
+	 * targeted web application, hence consequent requests should result into the same response.
+	 *
 	 * @param CHttpClientRequest|string $request
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3
@@ -63,6 +80,12 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Prepare a HTTP HEAD request
+	 *
+	 * HEAD requests are used in order to fetch only the headers a regular response to a GET request would contain sans
+	 * the body. Informations retrieved through this method are notoriously unreliable and should be treated with care.
+	 * Much like GET requests, HEAD requests are supposed to be idempotent.
+	 *
 	 * @param CHttpClientRequest|string $request
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
@@ -76,6 +99,11 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Prepare a HTTP POST request
+	 *
+	 * POST requests are used to modify the state of a web application by passing a set of variables and/or a set of
+	 * files to a specified resource intended to process the body of the request.
+	 *
 	 * @param CHttpClientRequest|string $request
 	 * @param mixed $body
 	 * @param string $mimeType
@@ -91,6 +119,13 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Prepare a HTTP PUT request
+	 *
+	 * PUT requests are quite rare, usually issued towards ReSTful webapplications or used through the HTTP transports
+	 * of version control systems such as Mercurial, git, or Subversion. They work quite similar to POST requests with a
+	 * significant semantic change: Instead of specifying an entity responsible for the processing of the requests body,
+	 * the given URL is pointing at the resource that is supposed to be either altered (i.e. replaced) or created.
+	 *
 	 * @param CHttpClientRequest|string $request
 	 * @param mixed $body
 	 * @param string $mimeType
@@ -106,6 +141,11 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Prepare a HTTP DELETE request
+	 *
+	 * DELETE requests instruct a webserver or webapplication to remove the resource at the given URL. The context in
+	 * which they are being used is very much the same as the one for PUT requests.
+	 *
 	 * @param CHttpClientRequest|string $request
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.7
@@ -119,8 +159,10 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
-	 * @param mixed $request
-	 * @return CHttpClientResponse
+	 * Send out a prepared request or prepare one and send it out via the connector.
+	 *
+	 * @param array|CHttpClientRequest $request the request to be sent out
+	 * @return CHttpClientResponse the response to the sent request
 	 */
 	public function send($request)
 	{
@@ -136,6 +178,8 @@ class CHttpClient extends CApplicationComponent {
 	}
 
 	/**
+	 * Set the connector
+	 *
 	 * @param array|CBaseHttpClientConnector $connector
 	 */
 	public function setConnector($connector)
@@ -143,6 +187,11 @@ class CHttpClient extends CApplicationComponent {
 		$this->_connector=$connector;
 	}
 
+	/**
+	 * Get the connector
+	 *
+	 * @return CBaseHttpClientConnector
+	 */
 	public function getConnector()
 	{
 		if(is_array($this->_connector))
@@ -158,9 +207,11 @@ class CHttpClient extends CApplicationComponent {
  * CHttpClientMessage is the base class for all HTTP messages (i.e. requests and responses)
  *
  * @property CHttpMessageBody $body string the body of this message. Might be empty for some request and response types.
+ * @property CHeaderCollection $headers a collection of headers associated with this message.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 abstract class CHttpClientMessage extends CComponent
 {
@@ -182,6 +233,10 @@ abstract class CHttpClientMessage extends CComponent
 	 */
 	public $httpVersion=1.1;
 
+	/**
+	 * Set the set of headers associated with this message.
+	 * @param CHeaderCollection|array $headers
+	 */
 	public function setHeaders($headers)
 	{
 		if(is_array($headers))
@@ -190,6 +245,10 @@ abstract class CHttpClientMessage extends CComponent
 			$this->_headers=$headers;
 	}
 
+	/**
+	 * Get the set of headers associated with this message.
+	 * @return CHeaderCollection
+	 */
 	public function getHeaders()
 	{
 		if(!$this->_headers)
@@ -197,11 +256,19 @@ abstract class CHttpClientMessage extends CComponent
 		return $this->_headers;
 	}
 
-	public function setBody($body)
+	/**
+	 * Set the body of this message.
+	 * @param CHttpMessageBody $body
+	 */
+	public function setBody(CHttpMessageBody $body)
 	{
 		$this->_body=$body;
 	}
 
+	/**
+	 * Get the body of this message.
+	 * @return CHttpMessageBody
+	 */
 	public function getBody()
 	{
 		if(!$this->_body)
@@ -211,16 +278,25 @@ abstract class CHttpClientMessage extends CComponent
 }
 
 /**
- * Class CHttpMessageBody
+ * CHttpMessageBody class
  *
  * @property resource stream
  * @property CHeaderCollection $headers
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ * @since 1.1.14
  */
 class CHttpMessageBody extends CComponent
 {
-	/** @var @var resource */
+	/**
+	 * @var resource
+	 */
 	private $_stream;
-	/** @var @var CHeaderCollection */
+
+	/**
+	 * @var CHeaderCollection
+	 */
 	private $_headers;
 
 	/**
@@ -273,6 +349,9 @@ class CHttpMessageBody extends CComponent
 		}
 	}
 
+	/**
+	 * @return resource
+	 */
 	public function getStream()
 	{
 		if(!$this->_stream)
@@ -280,16 +359,25 @@ class CHttpMessageBody extends CComponent
 		return $this->_stream;
 	}
 
+	/**
+	 * @param resource $stream
+	 */
 	public function setStream($stream)
 	{
 		$this->_stream=$stream;
 	}
 
-	public function setHeaders($headers)
+	/**
+	 * @param CHeaderCollection $headers
+	 */
+	public function setHeaders(CHeaderCollection $headers)
 	{
 		$this->_headers=$headers;
 	}
 
+	/**
+	 * @return CHeaderCollection
+	 */
 	public function getHeaders()
 	{
 		if(!$this->_headers)
@@ -303,6 +391,7 @@ class CHttpMessageBody extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 class CHttpClientResponse extends CHttpClientMessage
 {
@@ -317,6 +406,8 @@ class CHttpClientResponse extends CHttpClientMessage
 	public $message;
 
 	/**
+	 * Check if this response object is informational
+	 *
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
 	 */
@@ -326,6 +417,8 @@ class CHttpClientResponse extends CHttpClientMessage
 	}
 
 	/**
+	 * Check if this response has been successful
+	 *
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2
 	 */
@@ -336,6 +429,7 @@ class CHttpClientResponse extends CHttpClientMessage
 
 	/**
 	 * Check if this response object carries a status code indicating a HTTP redirect
+	 *
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3
 	 */
@@ -345,6 +439,8 @@ class CHttpClientResponse extends CHttpClientMessage
 	}
 
 	/**
+	 * Check if the server reported an error in response to a faulty or illegal request
+	 *
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4
 	 */
@@ -354,6 +450,8 @@ class CHttpClientResponse extends CHttpClientMessage
 	}
 
 	/**
+	 * Check if the server failed to deliver a response due to problems on his side
+	 *
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
 	 */
@@ -370,6 +468,10 @@ class CHttpClientResponse extends CHttpClientMessage
  * as they control where and how this request should be sent to.
  *
  * @property CUrl $url
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ * @since 1.1.14
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
@@ -383,6 +485,9 @@ class CHttpClientRequest extends CHttpClientMessage
 	/** @var CHttpClient */
 	public $client;
 
+	/**
+	 * @return CHttpClientResponse
+	 */
 	public function send()
 	{
 		if($this->client)
@@ -414,12 +519,23 @@ class CHttpClientRequest extends CHttpClientMessage
 }
 
 /**
- * CHeaderCollection
+ * CHeaderCollection class
+ *
+ * CHeaderCollection works largely just like {@link CMap} with the exception that all keys are converted to lower case
+ * internally. Also, {@link add} does not overwrite existing values. If you wish to overwrite a value, use {@link set}
+ * instead.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 class CHeaderCollection extends CMap {
+
+	/**
+	 * @param mixed $key
+	 * @param mixed $value
+	 * @see CMap::add
+	 */
 	public function add($key,$value)
 	{
 		$key=strtolower($key);
@@ -429,21 +545,41 @@ class CHeaderCollection extends CMap {
 			parent::add(strtolower($key),$value);
 	}
 
+	/**
+	 * @param $key
+	 * @param $value
+	 * @see CMap::add
+	 */
 	public function set($key,$value)
 	{
 		parent::add(strtolower($key),$value);
 	}
 
+	/**
+	 * @param mixed $key
+	 * @return mixed
+	 * @see CMap::add
+	 */
 	public function itemAt($key)
 	{
 		return parent::itemAt(strtolower($key));
 	}
 
+	/**
+	 * @param mixed $key
+	 * @return mixed
+	 * @see CMap::remove
+	 */
 	public function remove($key)
 	{
 		return parent::remove(strtolower($key));
 	}
 
+	/**
+	 * @param mixed $key
+	 * @return bool
+	 * @see CMap::contains
+	 */
 	public function contains($key)
 	{
 		return parent::contains(strtolower($key));
@@ -474,6 +610,10 @@ class CHeaderCollection extends CMap {
  * @property integer $port
  * @property string $path
  * @property string $query
+ *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ * @since 1.1.14
  */
 class CUrl extends CComponent
 {
@@ -690,6 +830,7 @@ class CUrl extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 abstract class CBaseHttpClientConnector extends CComponent
 {
@@ -714,6 +855,7 @@ abstract class CBaseHttpClientConnector extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
+ * @since 1.1.14
  */
 class CHttpClientConnector extends CBaseHttpClientConnector
 {
@@ -916,6 +1058,9 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 /**
  * Class CDechunkFilter
  *
+ * @author Da:Sourcerer <webmaster@dasourcerer.net>
+ * @package system.web
+ * @since 1.1.14
  * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
  */
 class CDechunkFilter extends php_user_filter {
