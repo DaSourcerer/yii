@@ -182,11 +182,6 @@ abstract class CHttpClientMessage extends CComponent
 	 */
 	public $httpVersion=1.1;
 
-	public function __construct()
-	{
-		$this->headers=new CHeaderCollection;
-	}
-
 	public function setHeaders($headers)
 	{
 		if(is_array($headers))
