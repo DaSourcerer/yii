@@ -17,7 +17,7 @@
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHttpClient extends CApplicationComponent {
 	/**
@@ -211,7 +211,7 @@ class CHttpClient extends CApplicationComponent {
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 abstract class CHttpClientMessage extends CComponent
 {
@@ -285,7 +285,7 @@ abstract class CHttpClientMessage extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHttpMessageBody extends CComponent
 {
@@ -391,7 +391,7 @@ class CHttpMessageBody extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHttpClientResponse extends CHttpClientMessage
 {
@@ -471,7 +471,7 @@ class CHttpClientResponse extends CHttpClientMessage
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
@@ -527,7 +527,7 @@ class CHttpClientRequest extends CHttpClientMessage
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHeaderCollection extends CMap {
 
@@ -613,7 +613,7 @@ class CHeaderCollection extends CMap {
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CUrl extends CComponent
 {
@@ -830,7 +830,7 @@ class CUrl extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 abstract class CBaseHttpClientConnector extends CComponent
 {
@@ -855,7 +855,7 @@ abstract class CBaseHttpClientConnector extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  */
 class CHttpClientConnector extends CBaseHttpClientConnector
 {
@@ -1060,7 +1060,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.14
+ * @since 1.1.15
  * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
  */
 class CDechunkFilter extends php_user_filter {
