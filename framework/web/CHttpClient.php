@@ -507,7 +507,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	/**
 	 * @var CUrl
 	 */
-	public $url=new CUrl;
+	public $url;
 
 	/** @var string */
 	public $method=CHttpClient::METHOD_GET;
@@ -527,7 +527,10 @@ class CHttpClientRequest extends CHttpClientMessage
 
 	public function __construct($url=null, $method=CHttpClient::METHOD_GET)
 	{
-		$this->url=$url;
+		if($url instanceof CUrl)
+			$this->url=$url;
+		else
+			$this->url=new Curl;
 		$this->method=$method;
 	}
 
