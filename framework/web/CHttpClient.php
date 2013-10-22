@@ -667,7 +667,7 @@ class CUrl extends CComponent
 	 * @param mixed $url
 	 * @throws CException
 	 */
-	public function __construct($url)
+	public function __construct($url=null)
 	{
 		if($url instanceof self)
 			$url=$url->toArray();
