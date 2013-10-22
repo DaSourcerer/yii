@@ -413,7 +413,7 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public function isInformational()
 	{
-		return ($this->status>=100&&$this->status<200);
+		return $this->status>=100&&$this->status<200;
 	}
 
 	/**
@@ -424,7 +424,7 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public function isSuccessful()
 	{
-		return ($this->status==304||$this->status>=200&&$this->status<300);
+		return $this->status==304||$this->status>=200&&$this->status<300;
 	}
 
 	/**
@@ -435,7 +435,7 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public function isRedirect()
 	{
-		return ($this->status!=304&&$this->status>=300&&$this->status<400);
+		return $this->status!=304&&$this->status>=300&&$this->status<400;
 	}
 
 	/**
@@ -444,9 +444,9 @@ class CHttpClientResponse extends CHttpClientMessage
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4
 	 */
-	public function isError()
+	public function isClientError()
 	{
-		return ($this->status>=400&&$this->status<500);
+		return $this->status>=400&&$this->status<500;
 	}
 
 	/**
@@ -457,7 +457,36 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public function isServerError()
 	{
-		return $this->status>=500;
+		return $this->status>=500&&$this->status<600;
+	}
+
+	/**
+	 * Check if the server reported an error due to a either a client <strong>or</strong>
+	 * a server error
+	 *
+	 * @return boolean
+	 */
+	public function isError()
+	{
+		return $this->isClientError()||$this->isServerError();
+	}
+
+	/**
+	 * Check if this response carries an unrecognized response code
+	 *
+	 * @return boolean
+	 */
+	public function isUnknown()
+	{
+		if($this->isInformationa())
+			return false;
+		if($this->isSuccessful())
+			return false;
+		if($this->isRedirect())
+			return false;
+		if($this->isError())
+			return false;
+		return true;
 	}
 }
 
