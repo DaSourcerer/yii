@@ -894,15 +894,6 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 	 */
 	public $ssl=array();
 
-	/**
-	 * @var array connection parameters for a proxy server as key/value pairs. The following settings are understood:
-	 *  - host: the IP or hostname of the proxy. Defaults to the local host.
-	 *  - port: The port. Defaults to 8080.
-	 *  - user: The username in case the proxy requires authentication
-	 *  - pass: The password belonging to the username
-	 *  - ssl: Whether the proxy requires a SSL connection or not. Defaults to false.
-	 */
-	public $proxy=array();
 	public $persistent=true;
 
 	private $_streamContext;
@@ -942,9 +933,8 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 					'port'=>8080,
 				),$this->proxy));
 
-				if(!stream_context_set_option($this->_streamContext, 'http', 'proxy', $proxy))
-					throw new CException(Yii::t('yii','Failed to set http proxy location: {proxy}',array('{proxy}'=>$proxy)));
 			}
+
 			foreach($this->ssl as $option=>$value)
 			{
 				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
