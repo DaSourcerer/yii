@@ -914,16 +914,6 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		if($this->_streamContext===null)
 		{
 			$this->_streamContext=stream_context_create();
-			if(!empty($this->proxy))
-			{
-				$proxy=new CUrl(array_merge(array(
-					'scheme'=>'tcp',
-					'host'=>'localhost',
-					'port'=>8080,
-				),$this->proxy));
-
-			}
-
 			foreach($this->ssl as $option=>$value)
 			{
 				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
