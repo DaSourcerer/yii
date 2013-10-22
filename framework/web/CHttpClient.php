@@ -478,7 +478,7 @@ class CHttpClientResponse extends CHttpClientMessage
 	 */
 	public function isUnknown()
 	{
-		if($this->isInformationa())
+		if($this->isInformational())
 			return false;
 		if($this->isSuccessful())
 			return false;
