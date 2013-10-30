@@ -406,6 +406,11 @@ class CHttpClientResponse extends CHttpClientMessage
 	public $message;
 
 	/**
+	 * @var CHttpClientRequest the original request to this response
+	 */
+	public $request;
+
+	/**
 	 * Check if this response object is informational
 	 *
 	 * @return boolean
@@ -530,10 +535,30 @@ class CHttpClientRequest extends CHttpClientMessage
 		if($url instanceof CUrl)
 			$this->url=$url;
 		else
-			$this->url=new Curl;
+			$this->url=new Curl($url);
 		$this->method=$method;
 	}
 
+	/**
+	 *
+	 * @param CHttpClientResponse $response
+	 * @return CHttpClientRequest
+	 * @throws CException
+	 */
+	public static function fromRedirect(CHttpClientResponse $response)
+	{
+		if(!isset($response->headers['Location']))
+			throw new CHttpException(Yii::t('yii','Got a redirect without new location'));
+		$request=new CHttpClientRequest($response->headers['Location'],$response->request->method);
+		$request->headers=$response->request->headers;
+		$request->body=$response->request->body;
+		return $request;
+	}
+
+	public function getRequestLine()
+	{
+		return sprintf('%s %s HTTP/%f',$this->method,$this->url,$this->httpVersion).CHttpClient::CRLF;
+	}
 }
 
 /**
@@ -853,9 +878,16 @@ class CUrl extends CComponent
 abstract class CBaseHttpClientConnector extends CComponent
 {
 	/**
+	 * Maximum number of seconds for timeouts
 	 * @var integer
 	 */
 	public $timeout=5;
+
+	/**
+	 * Maximum number of HTTP redirects to follow
+	 * @var integer
+	 */
+	public $maxRedirects=5;
 
 	/**
 	 * Perform the actual HTTP request and return the response
@@ -952,26 +984,42 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		return $connection;
 	}
 
+
 	public function send(CHttpClientRequest $request)
+	{
+		return $this->sendInternal($request, $this->maxRedirects);
+	}
+
+	protected function sendInternal(CHttpClientRequest $request, $redirectsLeft)
 	{
 		$connection=$this->getConnection($request->url);
 
 		$request->headers->mergeWith($this->_headers);
-		$this->write($connection, $request);
+		$this->sendRequest($connection, $request);
 
-		$response=$this->readResponse($connection);
+		$response=$this->readResponse($connection, $request);
+
+		if($response->isRedirect())
+		{
+			--$redirectsLeft;
+			if($redirectsLeft==0)
+				throw new CException(Yii::t('yii','Maximum number of HTTP redirects reached'));
+			return $this->sendInternal($request, $redirectsLeft);
+		}
 
 		return $response;
 	}
 
 	/**
 	 * @param $connection
+	 * @param CHttpClientRequest $request
 	 * @return CHttpClientResponse
 	 * @throws CException
 	 */
-	protected function readResponse($connection)
+	protected function readResponse($connection, CHttpClientRequest $request)
 	{
 		$response=new CHttpClientResponse;
+		$response->request=$request;
 		if(!($statusLine=@fgets($connection)))
 			throw new CException(Yii::t('yii','Failed to read from connection'));
 
@@ -1043,7 +1091,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		return $response;
 	}
 
-	protected function write($connection, CHttpClientRequest $request)
+	protected function sendRequest($connection, CHttpClientRequest $request)
 	{
 		$requestStringLength = strlen((string)$request);
 		$written = fwrite($connection, $request);
