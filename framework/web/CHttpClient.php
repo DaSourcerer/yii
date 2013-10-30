@@ -64,7 +64,7 @@ class CHttpClient extends CApplicationComponent {
 	 * Prepare a HTTP GET request
 	 *
 	 * GET requests are the most common ones. They are used to fetch a remote resource.
-	 * This type of request is supposed to be idempotent, i.e. issueing a GET request should not change the state of the
+	 * This type of request is supposed to be idempotent, i.e. issuing a GET request should not change the state of the
 	 * targeted web application, hence consequent requests should result into the same response.
 	 *
 	 * @param CHttpClientRequest|string $request
@@ -633,7 +633,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	/**
 	 * Disable HTTP caching for this request
 	 *
-	 * @return CHttpClientRrequest This request
+	 * @return CHttpClientRequest This request
 	 */
 	public function disableCaching()
 	{
