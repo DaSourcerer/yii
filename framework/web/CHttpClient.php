@@ -555,9 +555,53 @@ class CHttpClientRequest extends CHttpClientMessage
 		return $request;
 	}
 
+	/**
+	 * Get the HTTP request line for this request
+	 * @return string
+	 */
 	public function getRequestLine()
 	{
 		return sprintf('%s %s HTTP/%f',$this->method,$this->url,$this->httpVersion).CHttpClient::CRLF;
+	}
+
+	/**
+	 * Add a header to this request
+	 *
+	 * @param $key The key of the header to add
+	 * @param $value The value of the header to add
+	 * @return CHttpClientRequest This request
+	 */
+	public function addHeader($key,$value)
+	{
+		$this->headers->add($key,$value);
+		return $this;
+	}
+
+	/**
+	 * Set a header on this request
+	 *
+	 * The difference to {@link addHeader()} is that existing headers will be overwritten
+	 *
+	 * @param $key The key of the header to set
+	 * @param $value The value of the header to set
+	 * @return CHttpClientRequest This request
+	 */
+	public function setHeader($key,$value)
+	{
+		$this->headers->set($key,$value);
+		return $this;
+	}
+
+	/**
+	 * Remove a header from this request
+	 *
+	 * @param $key
+	 * @return CHttpClientRequest This request
+	 */
+	public function removeHeader($key)
+	{
+		$this->headers->remove($key);
+		return $this;
 	}
 }
 
