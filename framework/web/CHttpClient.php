@@ -1004,7 +1004,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			--$redirectsLeft;
 			if($redirectsLeft==0)
 				throw new CException(Yii::t('yii','Maximum number of HTTP redirects reached'));
-			return $this->sendInternal($request, $redirectsLeft);
+			return $this->sendInternal(CHttpClientRequest::fromRedirect($response), $redirectsLeft);
 		}
 
 		return $response;
