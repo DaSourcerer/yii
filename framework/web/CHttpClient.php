@@ -493,6 +493,30 @@ class CHttpClientResponse extends CHttpClientMessage
 			return false;
 		return true;
 	}
+
+	/**
+	 * Check if this response can be cached
+	 *
+	 * @return bool
+	 */
+	public function isCacheable()
+	{
+		if(!$this->request->isCacheable())
+			return false;
+		if(!isset($this->headers['ETag'])&&!isset($this->headers['Last-Modified']))
+			return false;
+		return true;
+	}
+
+	/**
+	 * Check if this response has been cached
+	 *
+	 * @return bool
+	 */
+	public function isCached()
+	{
+		return $this->status==304;
+	}
 }
 
 /**
@@ -518,6 +542,8 @@ class CHttpClientRequest extends CHttpClientMessage
 	public $method=CHttpClient::METHOD_GET;
 	/** @var CHttpClient */
 	public $client;
+
+	private $_cacheable=true;
 
 	/**
 	 * @return CHttpClientResponse
@@ -595,7 +621,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	/**
 	 * Remove a header from this request
 	 *
-	 * @param $key
+	 * @param $key The key of the header to be removed
 	 * @return CHttpClientRequest This request
 	 */
 	public function removeHeader($key)
@@ -603,6 +629,32 @@ class CHttpClientRequest extends CHttpClientMessage
 		$this->headers->remove($key);
 		return $this;
 	}
+
+	/**
+	 * Disable HTTP caching for this request
+	 *
+	 * @return CHttpClientRrequest This request
+	 */
+	public function disableCaching()
+	{
+		$this->_cacheable=false;
+		return $this;
+	}
+
+	/**
+	 * Check if the response to this request can be cached
+	 *
+	 * @return bool true if the response to this request can be cached
+	 */
+	public function isCacheable()
+	{
+		if($this->httpVersion<1)
+			return false;
+		if(!in_array(strtoupper($this->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD)))
+			return false;
+		return $this->_cacheable;
+	}
+
 }
 
 /**
