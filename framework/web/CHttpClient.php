@@ -1093,11 +1093,19 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 
 	protected function sendRequest($connection, CHttpClientRequest $request)
 	{
-		$requestStringLength = strlen((string)$request);
-		$written = fwrite($connection, $request);
+		fwrite($connection,$request->getRequestLine());
+		if($request->httpVersion >= 1)
+		{
+			if(!in_array(strtoupper($request->method), array(CHttpClient::METHOD_GET, CHttpClient::METHOD_HEAD)))
+				$request->headers->set('Date', gmdate('D, d M Y H:i:s').' GMT');
+			if(isset($request->url->user)&&isset($request->url->pass))
+				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
+			fwrite($connection,$request->headers);
+		} else {
+			fwrite($connection,CHttpClient::CRLF);
+		}
 
-		if ($written != $requestStringLength)
-			Yii::log(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$requestStringLength)),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+		stream_copy_to_stream($request->body->stream,$connection);
 	}
 }
 
