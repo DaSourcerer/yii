@@ -26,12 +26,12 @@ class CHttpClientTestCase extends CTestCase
 		$request=$this->_client->get('http://www.example.org/');
 		$this->assertInstanceOf('CHttpClientRequest', $request);
 		$this->assertEquals(CHttpClient::METHOD_GET, $request->method);
-		$this->assertEquals('http://www.example.org/', $request->url);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 
 		$request=$this->_client->get(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
 		$this->assertInstanceOf('CHttpClientRequest', $request);
 		$this->assertEquals(CHttpClient::METHOD_GET, $request->method);
-		$this->assertEquals('http://www.example.org/', $request->url);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 	}
 
 	public function testSend()
