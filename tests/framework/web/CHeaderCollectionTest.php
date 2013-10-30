@@ -17,11 +17,11 @@ class CHeaderCollectionTest extends CTestCase
 	{
 		$headers=new CHeaderCollection;
 		$this->assertNotEmpty((string)$headers);
-		$this->assertEquals("\r\n",(string)$headers);
+		$this->assertEquals(CHttpClient::CRLF,(string)$headers);
 		$headers->add('X-Foo','bar');
 		$this->assertNotEmpty((string)$headers);
 		$this->assertStringStartsWith('X-Foo:',(string)$headers);
-		$this->assertStringEndsWith("\r\n\r\n",(string)$headers);
+		$this->assertStringEndsWith(CHttpClient::CRLF.CHttpClient::CRLF,(string)$headers);
 	}
 
 	public function testAdd()
