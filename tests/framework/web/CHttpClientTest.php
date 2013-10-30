@@ -31,13 +31,13 @@ class CHttpClientTestCase extends CTestCase
 	public function testUserAgentString()
 	{
 		$headers=$this->_client->get('http://www.example.org/')->send()->request->headers->toArray();
-		$this->assertNotNull($headers['User-Agent']);
+		$this->assertArrayHasKey('User-Agent',$headers);
 		$client=new CHttpClient;
 		$client->userAgentString=CHttpClient::USER_AGENT_STRING_NONE;
 		$client->init();
 		$client->connector=new DummyConnector;
 		$headers=$client->get('http://www.example.org/')->send()->request->headers->toArray();
-		$this->assertNull($headers['User-Agent']);
+		$this->assertArrayNotHasKey('User-Agent',$headers);
 	}
 
 	public function testConnector()
