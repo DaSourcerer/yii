@@ -26,9 +26,19 @@ class CHttpClient extends CApplicationComponent {
 	const CRLF="\r\n";
 
 	/**
-	 * The default user agent string CHttpCLient is using in order to identify itself
+	 * The default user agent string CHttpClient is using in order to identify itself
 	 */
-	const USER_AGENT_STRING='Mozilla/5.0 (compatible; yii/{version}; +http://yiiframework.com)';
+	const USER_AGENT_STRING='Mozilla/5.0 (compatible; Yii/{version}; +http://yiiframework.com)';
+
+	/**
+	 * Empty user agent string
+	 */
+	const USER_AGENT_STRING_NONE=null;
+
+	/**
+	 * Full user agent string
+	 */
+	const USER_AGENT_STRING_FULL='Mozilla/5.0 (compatible; Yii/{version}; {connector}/{connectorVersion}; +http://yiiframework.com)';
 
 	const METHOD_GET='GET';
 	const METHOD_HEAD='HEAD';
@@ -45,6 +55,13 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public $headers=array();
 
+	/**
+	 * The user agent string with which CHttpClient will identify itself.
+	 *
+	 * @var string
+	 */
+	public $userAgentString=self::USER_AGENT_STRING;
+
 	private $_connector=array(
 		'class'=>'CHttpClientConnector',
 	);
@@ -56,8 +73,12 @@ class CHttpClient extends CApplicationComponent {
 	{
 		parent::init();
 
-		if(!isset($this->headers['User-Agent']))
-			$this->headers['User-Agent']=str_replace('{version}',Yii::getVersion(),self::USER_AGENT_STRING);
+		if($this->userAgentString)
+			$this->headers['User-Agent']=strtr(array(
+				'{version}'=>Yii::getVersion(),
+				'{connector}'=>$this->connector->getId(),
+				'{connectorVersion}'=>$this->connector->getVersion(),
+			),$this->userAgentString);
 	}
 
 	/**
@@ -73,10 +94,7 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function get($request)
 	{
-		if(is_string($request))
-			$request=new CHttpClientRequest($request);
-		$request->method=self::METHOD_GET;
-		return $request;
+		return $this->craftRequest($request,self::METHOD_GET);
 	}
 
 	/**
@@ -92,10 +110,7 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function head($request)
 	{
-		if(is_string($request))
-			$request=new CHttpClientRequest($request);
-		$request->method=self::METHOD_HEAD;
-		return $request;
+		return $this->craftRequest($request, self::METHOD_HEAD);
 	}
 
 	/**
@@ -112,9 +127,9 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function post($request, $body=null, $mimeType=null)
 	{
-		if(is_string($request))
-			$request=new CHttpClientRequest($request);
-		$request->method=self::METHOD_POST;
+		$request=$this->craftRequest($request,self::METHOD_POST);
+		if($body instanceof CHttpMessageBody)
+			$request->body=$body;
 		return $request;
 	}
 
@@ -134,9 +149,9 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function put($request, $body=null, $mimeType=null)
 	{
-		if(is_string($request))
-			$request=new CHttpClientRequest($request);
-		$request->method=self::METHOD_PUT;
+		$request=$this->craftRequest($request,self::METHOD_PUT);
+		if($body instanceof CHttpMessageBody)
+			$request->body=$body;
 		return $request;
 	}
 
@@ -152,10 +167,7 @@ class CHttpClient extends CApplicationComponent {
 	 */
 	public function delete($request)
 	{
-		if(is_string($request))
-			$request=new CHttpClientRequest($request);
-		$request->method=self::METHOD_DELETE;
-		return $request;
+		return $this->craftRequest($request,self::METHOD_DELETE);
 	}
 
 	/**
@@ -200,6 +212,29 @@ class CHttpClient extends CApplicationComponent {
 			$this->_connector->init();
 		}
 		return $this->_connector;
+	}
+
+	/**
+	 * @param $request
+	 * @param $method
+	 * @return CHttpClientRequest
+	 */
+	protected function craftRequest($request,$method)
+	{
+		if(is_string($request))
+			$result=new CHttpClientRequest($request);
+		elseif(is_array($request))
+		{
+			$result=new CHttpClientRequest;
+			foreach($request as $key=>$value)
+				$result->$key=$value;
+		}
+		elseif($request instanceof CHttpClientRequest)
+			$result=$request;
+		else
+			$result=new CHttpClientRequest;
+		$result->method=$method;
+		return $result;
 	}
 }
 
@@ -993,6 +1028,20 @@ abstract class CBaseHttpClientConnector extends CComponent
 	 * @return CHttpClientResponse
 	 */
 	abstract function send(CHttpClientRequest $request);
+
+	/**
+	 * Return a descriptive id for this connector to be used in the user agent string
+	 *
+	 * @return string
+	 */
+	abstract function getId();
+
+	/**
+	 * Return a version number for this connector to be used in the user agent string
+	 *
+	 * @return string
+	 */
+	abstract function getVersion();
 }
 
 /**
@@ -1202,6 +1251,16 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		}
 
 		stream_copy_to_stream($request->body->stream,$connection);
+	}
+
+	public function getId()
+	{
+		return 'stream';
+	}
+
+	public function getVersion()
+	{
+		return phpversion();
 	}
 }
 
