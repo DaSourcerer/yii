@@ -4,6 +4,13 @@ Yii::import('system.web.CHttpClient',true);
 
 class CHeaderCollectionTest extends CTestCase
 {
+	public function testConstructor()
+	{
+		$headers=new CHeaderCollection;
+		$this->assertEmpty($headers->toArray());
+		$this->assertNull($headers['x-foo']);
+	}
+
 	public function testHeaderNamesCaseInsensitive()
 	{
 		$headers=new CHeaderCollection;
@@ -11,6 +18,7 @@ class CHeaderCollectionTest extends CTestCase
 		$this->assertEquals('bar',$headers['x-foo']);
 		$this->assertEquals('bar',$headers['X-Foo']);
 		$this->assertEquals('bar',$headers['X-FOO']);
+		$this->assertEquals(array('x-foo'=>'bar'),$headers->toArray());
 	}
 
 	public function testToString()

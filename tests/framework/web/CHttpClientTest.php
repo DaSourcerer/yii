@@ -16,6 +16,30 @@ class CHttpClientTestCase extends CTestCase
 		$this->_client->connector=new DummyConnector;
 	}
 
+	public function testDefaultHeaders()
+	{
+		$this->assertNull($this->_client->get('http://www.example.org/')->send()->request->headers['DNT']);
+		$client=new CHttpClient;
+		$client->headers=array('DNT'=>1);
+		$client->init();
+		$client->connector=new DummyConnector;
+		$headers=$client->get('http://www.example.org/')->send()->request->headers->toArray();
+		$this->assertNotEmpty($headers);
+		$this->assertEquals(1,$headers['DNT']);
+	}
+
+	public function testUserAgentString()
+	{
+		$headers=$this->_client->get('http://www.example.org/')->send()->request->headers->toArray();
+		$this->assertNotNull($headers['User-Agent']);
+		$client=new CHttpClient;
+		$client->userAgentString=CHttpClient::USER_AGENT_STRING_NONE;
+		$client->init();
+		$client->connector=new DummyConnector;
+		$headers=$client->get('http://www.example.org/')->send()->request->headers->toArray();
+		$this->assertNull($headers['User-Agent']);
+	}
+
 	public function testConnector()
 	{
 		$this->assertInstanceOf('CBaseHttpClientConnector', $this->_client->connector);
@@ -34,11 +58,38 @@ class CHttpClientTestCase extends CTestCase
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 	}
 
+	public function testHead()
+	{
+		$request=$this->_client->head('http://www.example.org/');
+		$this->assertInstanceOf('CHttpClientRequest', $request);
+		$this->assertEquals(CHttpClient::METHOD_HEAD, $request->method);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
+
+		$request=$this->_client->head(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
+		$this->assertInstanceOf('CHttpClientRequest', $request);
+		$this->assertEquals(CHttpClient::METHOD_HEAD, $request->method);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
+	}
+
+	public function testDelete()
+	{
+		$request=$this->_client->delete('http://www.example.org/');
+		$this->assertInstanceOf('CHttpClientRequest', $request);
+		$this->assertEquals(CHttpClient::METHOD_DELETE, $request->method);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
+
+		$request=$this->_client->delete(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
+		$this->assertInstanceOf('CHttpClientRequest', $request);
+		$this->assertEquals(CHttpClient::METHOD_DELETE, $request->method);
+		$this->assertEquals('http://www.example.org/', $request->url->__toString());
+	}
+
 	public function testSend()
 	{
 		$request=new CHttpClientRequest('http://www.example.org/');
 		$response=$this->_client->send($request);
 		$this->assertInstanceOf('CHttpClientResponse', $response);
+		$this->assertEquals(CHttpClient::METHOD_GET, $this->_client->connector->getRequest()->method);
 		$this->assertSame($request, $this->_client->connector->getRequest());
 		$this->assertSame($response, $this->_client->connector->getResponse());
 
@@ -60,6 +111,14 @@ class CHttpClientTestCase extends CTestCase
 		$this->assertNotEmpty($request->headers);
 		$this->assertEquals('bar', $request->headers['X-Foo']);
 	}
+
+	/**
+	 * @expectedException CException
+	 */
+	public function testSendInvalidProtocol()
+	{
+		$this->_client->send(array('url'=>'ftp://example.org'));
+	}
 }
 
 class DummyConnector extends CBaseHttpClientConnector
@@ -80,7 +139,10 @@ class DummyConnector extends CBaseHttpClientConnector
 	public function getResponse()
 	{
 		if(!$this->_response)
+		{
 			$this->_response=new CHttpClientResponse;
+			$this->_response->request=$this->_request;
+		}
 		return $this->_response;
 	}
 
@@ -88,5 +150,15 @@ class DummyConnector extends CBaseHttpClientConnector
 	{
 		$this->_request=$request;
 		return $this->getResponse();
+	}
+
+	public function getId()
+	{
+		return 'dummy';
+	}
+
+	public function getVersion()
+	{
+		return '1.0';
 	}
 }

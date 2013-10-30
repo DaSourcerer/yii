@@ -74,11 +74,11 @@ class CHttpClient extends CApplicationComponent {
 		parent::init();
 
 		if($this->userAgentString)
-			$this->headers['User-Agent']=strtr(array(
+			$this->headers['User-Agent']=strtr($this->userAgentString,array(
 				'{version}'=>Yii::getVersion(),
 				'{connector}'=>$this->connector->getId(),
 				'{connectorVersion}'=>$this->connector->getVersion(),
-			),$this->userAgentString);
+			));
 	}
 
 	/**
@@ -175,6 +175,7 @@ class CHttpClient extends CApplicationComponent {
 	 *
 	 * @param array|CHttpClientRequest $request the request to be sent out
 	 * @return CHttpClientResponse the response to the sent request
+	 * @throws CException
 	 */
 	public function send($request)
 	{
@@ -185,7 +186,10 @@ class CHttpClient extends CApplicationComponent {
 				$r->$key=$value;
 			$request=$r;
 		}
+		if(!in_array($request->url->scheme, array('http', 'https')))
+			throw new CException(Yii::t('yii','Unsupported protocol: {scheme}',array('{scheme}'=>$request->url->scheme)));
 		$request->headers->mergeWith($this->headers);
+		$request->client=$this;
 		return $this->connector->send($request);
 	}
 
@@ -234,6 +238,7 @@ class CHttpClient extends CApplicationComponent {
 		else
 			$result=new CHttpClientRequest;
 		$result->method=$method;
+		$result->client=$this;
 		return $result;
 	}
 }
@@ -568,16 +573,16 @@ class CHttpClientResponse extends CHttpClientMessage
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
-	/**
-	 * @var CUrl
-	 */
-	public $url;
-
 	/** @var string */
 	public $method=CHttpClient::METHOD_GET;
 	/** @var CHttpClient */
 	public $client;
 
+	private $_url;
+
+	/**
+	 * @var bool
+	 */
 	private $_cacheable=true;
 
 	/**
@@ -593,11 +598,31 @@ class CHttpClientRequest extends CHttpClientMessage
 
 	public function __construct($url=null, $method=CHttpClient::METHOD_GET)
 	{
-		if($url instanceof CUrl)
-			$this->url=$url;
-		else
-			$this->url=new Curl($url);
+		$this->url=$url;
 		$this->method=$method;
+	}
+
+	/**
+	 * Set the target URL for this request
+	 *
+	 * @param CUrl|array|string $url
+	 */
+	public function setUrl($url)
+	{
+		if($url instanceof CUrl)
+			$this->_url=$url;
+		else
+			$this->_url=new CUrl($url);
+	}
+
+	/**
+	 * Get the target URL for this request
+	 *
+	 * @return CUrl
+	 */
+	public function getUrl()
+	{
+		return $this->_url;
 	}
 
 	/**
@@ -609,7 +634,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	public static function fromRedirect(CHttpClientResponse $response)
 	{
 		if(!isset($response->headers['Location']))
-			throw new CHttpException(Yii::t('yii','Got a redirect without new location'));
+			throw new CException(Yii::t('yii','Got a redirect without new location'));
 		$request=new CHttpClientRequest($response->headers['Location'],$response->request->method);
 		$request->headers=$response->request->headers;
 		$request->body=$response->request->body;
@@ -1002,6 +1027,8 @@ class CUrl extends CComponent
  * Please take note that the capabilities of different connectors might vary: They are free to advertise different
  * capabilities to servers and modify requests to their liking. They are thus not easily interchangeable.
  *
+ * @property $cache CCache
+ *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  * @since 1.1.15
@@ -1021,27 +1048,54 @@ abstract class CBaseHttpClientConnector extends CComponent
 	public $maxRedirects=5;
 
 	/**
+	 * The id of the caching component
+	 * @var string
+	 */
+	public $cacheID='cache';
+
+	/**
+	 * @var CCache
+	 */
+	private $_cache;
+
+	/**
 	 * Perform the actual HTTP request and return the response
 	 *
 	 * @param CHttpClientRequest $request
 	 * @throws CException
 	 * @return CHttpClientResponse
 	 */
-	abstract function send(CHttpClientRequest $request);
+	abstract public function send(CHttpClientRequest $request);
 
 	/**
 	 * Return a descriptive id for this connector to be used in the user agent string
 	 *
 	 * @return string
 	 */
-	abstract function getId();
+	abstract public function getId();
 
 	/**
 	 * Return a version number for this connector to be used in the user agent string
 	 *
 	 * @return string
 	 */
-	abstract function getVersion();
+	abstract public function getVersion();
+
+	/**
+	 * @return CCache
+	 * @see $cacheID
+	 */
+	public function getCache()
+	{
+		if($this->_cache===null)
+		{
+			$this->_cache=Yii::app()->getComponent($this->cacheID);
+			//For the console
+			if($this->_cache===null)
+				$this->_cache=new CDummyCache;
+		}
+		return $this->_cache;
+	}
 }
 
 /**
@@ -1149,7 +1203,24 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			--$redirectsLeft;
 			if($redirectsLeft==0)
 				throw new CException(Yii::t('yii','Maximum number of HTTP redirects reached'));
-			return $this->sendInternal(CHttpClientRequest::fromRedirect($response), $redirectsLeft);
+			$response = $this->sendInternal(CHttpClientRequest::fromRedirect($response), $redirectsLeft);
+		}
+
+		if($response->isCacheable())
+		{
+			$cacheHeaders=array();
+			if(isset($response->headers['ETag']))
+			{
+				$etag=$response->headers['ETag'];
+				//Handle weak etags
+				if(stripos('W/',$etag)===0)
+					$etag=substr($etag,2);
+				$cacheHeaders['etag']=$etag;
+			}
+			if(isset($response->headers['Last-Modified']))
+				$cacheHeaders['last-modified']=strtotime($response->headers['Last-Modified']);
+
+			$this->cache->set('system.web.CHttpClient#'.$request->url->filter(CUrl::COMPONENT_FRAGMENT),$cacheHeaders);
 		}
 
 		return $response;
@@ -1245,6 +1316,13 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 				$request->headers->set('Date', gmdate('D, d M Y H:i:s').' GMT');
 			if(isset($request->url->user)&&isset($request->url->pass))
 				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
+			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->filter(CUrl::COMPONENT_FRAGMENT).__toString()))!==false)
+			{
+				if(isset($cacheHeaders['etag']))
+					$request->headers->set('If-None-Match',$cacheHeaders['etag']);
+				if(isset($cacheHeaders['last-modified']))
+					$request->headers->set('If-Modified-Since',gmdate('D, d M Y H:i:s',$cacheHeaders['last-modified']).' GMT');
+			}
 			fwrite($connection,$request->headers);
 		} else {
 			fwrite($connection,CHttpClient::CRLF);
