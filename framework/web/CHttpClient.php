@@ -647,7 +647,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	public function getRequestLine()
 	{
-		return sprintf('%s %s HTTP/%f',$this->method,$this->url,$this->httpVersion).CHttpClient::CRLF;
+		return sprintf('%s %s HTTP/%f',$this->method,empty($this->url->path)?'/':$this->url->path,$this->httpVersion).CHttpClient::CRLF;
 	}
 
 	/**
@@ -801,8 +801,19 @@ class CHeaderCollection extends CMap {
 }
 
 /**
- * CUrl is an object for URL parsing and manipulation. It is in no way related to the {@link http://curl.haxx.se cURL} library
+ * CUrl is an object for URL parsing and manipulation.
  *
+ * The purpose of this class is the manipulation, normalization and comparison of URLs in accordance to RFC
+ * {@link http://tools.ietf.org/html/rfc3986 RFC 3986}. This class has been heavily influenced by the
+ * {@link http://pear.php.net/package/Net_URL2 PEAR::Net_URL2} package. In addition to normalization, conversion of
+ * internationalized domain names (IDNs) as mentioned in {@link http://tools.ietf.org/html/rfc3490 RFC 3490} is being
+ * handled in here.
+ *
+ * This class is in no way related to the {@link http://curl.haxx.se cURL} library, the {@link CUrlRule} class or the
+ * {@link CUrlManager}. Due to its forgiving parsing method, it is not to be used for URL validation. Please resort to
+ * {@link CUrlValidator} for that.
+ *
+ * @property string $scheme
  * @property string $host
  * @property string $user
  * @property string $pass
@@ -826,15 +837,45 @@ class CUrl extends CComponent
 	const COMPONENT_QUERY=0x40;
 	const COMPONENT_FRAGMENT=0x80;
 
-	public $scheme;
+	/**
+	 * @var array
+	 */
 	public $params=array();
+
+	/**
+	 * @var string
+	 */
 	public $fragment;
 
+	/**
+	 * @var string
+	 */
+	private $_scheme;
+
+	/**
+	 * @var string
+	 */
 	private $_host;
+
+	/**
+	 * @var string
+	 */
 	private $_user;
+
+	/**
+	 * @var string
+	 */
 	private $_pass;
+
+	/**
+	 * @var integer
+	 */
 	private $_port;
-	private $_path='/';
+
+	/**
+	 * @var string
+	 */
+	private $_path;
 
 	private static $_componentMap=array(
 		self::COMPONENT_SCHEME=>'scheme',
@@ -848,7 +889,7 @@ class CUrl extends CComponent
 	);
 
 	/**
-	 * @param mixed $url
+	 * @param CUrl|array|string $url
 	 * @throws CException
 	 */
 	public function __construct($url=null)
@@ -867,66 +908,141 @@ class CUrl extends CComponent
 		if(is_array($url))
 		{
 			foreach($url as $key=>$value)
-				$this->$key=$value;
+				if(!empty($value))
+					$this->$key=$value;
 		}
 	}
 
+	/**
+	 * @param string $scheme
+	 */
+	public function setScheme($scheme)
+	{
+		$this->_scheme=strtolower($scheme);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getScheme()
+	{
+		return $this->_scheme;
+	}
+
+	/**
+	 * Check if an URL is absolute or not
+	 * @return bool
+	 */
+	public function isAbsolute()
+	{
+		return !empty($this->_scheme);
+	}
+
+	/**
+	 * @param string $host
+	 */
 	public function setHost($host)
 	{
 		//@todo create a single instance of idna_convert and reuse that instead of creating a new instance on every call
 		require_once(Yii::getPathOfAlias('system.vendors.Net_IDNA2.Net').DIRECTORY_SEPARATOR.'IDNA2.php');
-		$idna=new Net_IDNA2();
-		$this->_host=$idna->encode($host);
+		$idna=new Net_IDNA2;
+		$this->_host=$this->urlencode($idna->encode(strtolower($host)));
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getHost()
 	{
 		return $this->_host;
 	}
 
+	/**
+	 * @param string $user
+	 */
 	public function setUser($user)
 	{
-		$this->_user=rawurldecode($user);
+		$this->_user=$this->urlencode($user);
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getUser()
 	{
 		return $this->_user;
 	}
 
+	/**
+	 * @param string $pass
+	 */
 	public function setPass($pass)
 	{
-		$this->_pass=rawurldecode($pass);
+		$this->_pass=$this->urlencode($pass);
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getPass()
 	{
 		return $this->_pass;
 	}
 
+	/**
+	 * @param integer $port
+	 */
 	public function setPort($port)
 	{
 		if($port!=getservbyname($this->scheme,'tcp'))
 			$this->_port=$port;
 	}
 
+	/**
+	 * @return integer
+	 */
 	public function getPort()
 	{
 		return $this->_port;
 	}
 
+	/**
+	 * @param string $path
+	 */
 	public function setPath($path)
 	{
-		//@todo normalize path. See http://svn.php.net/viewvc/pear/packages/Net_URL2/trunk/Net/URL2.php?revision=309223&view=markup#624
-		//Also: RFC 3986, sec 6.2.2ff
-		$this->_path=$path;
+		//@todo: RFC 3986, sec 6.2.2ff
+		// thx to hashguy on ##php@freenode for coming up with this
+		$normalizedPath=array();
+		foreach(explode('/',$path) as $segment)
+		{
+			if($segment=='.')
+				continue;
+			if($segment=='..')
+			{
+				array_pop($normalizedPath);
+				continue;
+			}
+			$normalizedPath[]=$this->urlencode($segment);
+		}
+
+		if(!empty($normalizedPath))
+			$this->_path=implode('/',$normalizedPath);
+		else
+			$this->_path=null;
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getPath()
 	{
 		return $this->_path;
 	}
 
+	/**
+	 * @param string $query
+	 */
 	public function setQuery($query)
 	{
 		if(is_array($query))
@@ -936,11 +1052,20 @@ class CUrl extends CComponent
 			parse_str($query,$this->params);
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getQuery()
 	{
 		return http_build_query($this->params);
 	}
 
+	/**
+	 * Strip specified parts from the current CUrl object and return a new one
+	 *
+	 * @param integer $bitmap
+	 * @return CUrl
+	 */
 	public function strip($bitmap)
 	{
 		$components=$this->toArray();
@@ -952,6 +1077,10 @@ class CUrl extends CComponent
 		return new CUrl($components);
 	}
 
+	/**
+	 * @param int $bitmap
+	 * @return CUrl
+	 */
 	public function filter($bitmap=0x00)
 	{
 		$components=$this->toArray();
@@ -963,6 +1092,33 @@ class CUrl extends CComponent
 		return new CUrl($components);
 	}
 
+	/**
+	 * @param CUrl|array|string $url
+	 * @throws CException
+	 * @return CUrl
+	 */
+	public function resolve($url)
+	{
+		if(!$url instanceof self)
+			$url=new self($url);
+
+		if(!$this->isAbsolute())
+			throw new CException(Yii::t('yii','Cannot resolve relative URL'));
+
+		if($url->isAbsolute())
+			return new CUrl($url);
+
+		$result=array_merge($this->toArray(),$url->strip(self::COMPONENT_PATH)->toArray());
+
+		if($url->path{0}==='/')
+			$result['path']=$url->path;
+
+		return new CUrl($result);
+	}
+
+	/**
+	 * @return array
+	 */
 	public function toArray()
 	{
 		return array(
@@ -977,44 +1133,45 @@ class CUrl extends CComponent
 		);
 	}
 
+	/**
+	 * @return string
+	 */
 	public function __toString()
 	{
 		$result='';
 		$components=$this->toArray();
-		if(isset($components['scheme']) && !empty($components['scheme']));
-			$result.=$components['scheme'].'://';
-		if(isset($components['user']) && !empty($components['user']))
+		if(!empty($components['scheme']))
+			$result.=$components['scheme'].':';
+		if(!empty($components['user']) || !empty($components['host']))
+			$result.='//';
+		if(!empty($components['user']))
 		{
-			$result.=rawurlencode($components['user']);
-			if(isset($components['pass']) && !empty($components['pass']))
-				$result.=':'.rawurlencode($components['pass']);
+			$result.=$components['user'];
+			if(!empty($components['pass']))
+				$result.=':'.$components['pass'];
 			$result.='@';
 		}
-		if(isset($components['host']) && !empty($components['host']))
+		if(!empty($components['host']))
 			$result.=$components['host'];
-		if(isset($components['path']) && !empty($components['path']))
-		{
-			$pathComponents=explode('/',$components['path']);
-			$path=array();
-			foreach($pathComponents as &$pathComponent)
-				if(empty($pathComponent))
-					continue;
-				else
-					$path[]=rawurlencode($pathComponent);
-			$path=implode('/',$path);
-			if($path{0}!='/')
-				$path='/'.$path;
-			$result.=$path;
-		}
-		else if((isset($components['query']) && !empty($components['query'])) || (isset($components['fragment']) && !empty($components['fragment'])))
+		if(!empty($components['port']))
+			$result.=':'.$components['port'];
+		if(!empty($components['path'])) {
+			if($components['path']{0}!=='/')
+				$result.='/';
+			$result.=$components['path'];
+		} elseif(!empty($components['query']) ||  !empty($components['fragment']))
 			$result.='/';
-		if(isset($components['query']) && !empty($components['query']))
-		{
+		if(!empty($components['query']))
 			$result.='?'.$components['query'];
-		}
-		if(isset($components['fragment']) && !empty($components['fragment']))
+		if(!empty($components['fragment']))
 			$result.='#'.$components['fragment'];
 		return $result;
+	}
+
+	private function urlencode($string)
+	{
+		$string=preg_replace_callback('/%[a-f\d]{2}/','strtoupper',$string);
+		return str_replace('%7E','~',rawurlencode($string));
 	}
 }
 
@@ -1220,7 +1377,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 			if(isset($response->headers['Last-Modified']))
 				$cacheHeaders['last-modified']=strtotime($response->headers['Last-Modified']);
 
-			$this->cache->set('system.web.CHttpClient#'.$request->url->filter(CUrl::COMPONENT_FRAGMENT),$cacheHeaders);
+			$this->cache->set('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString(),$cacheHeaders);
 		}
 
 		return $response;
@@ -1312,11 +1469,12 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		fwrite($connection,$request->getRequestLine());
 		if($request->httpVersion >= 1)
 		{
+			$request->headers->set('Host',$request->url->filter(CUrl::COMPONENT_HOST|CUrl::COMPONENT_PORT));
 			if(!in_array(strtoupper($request->method), array(CHttpClient::METHOD_GET, CHttpClient::METHOD_HEAD)))
 				$request->headers->set('Date', gmdate('D, d M Y H:i:s').' GMT');
 			if(isset($request->url->user)&&isset($request->url->pass))
 				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
-			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->filter(CUrl::COMPONENT_FRAGMENT).__toString()))!==false)
+			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString()))!==false)
 			{
 				if(isset($cacheHeaders['etag']))
 					$request->headers->set('If-None-Match',$cacheHeaders['etag']);
