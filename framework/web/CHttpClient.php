@@ -1183,7 +1183,7 @@ class CUrl extends CComponent
 		$queryParts=explode('&',$string);
 		foreach($queryParts as $queryPart)
 		{
-			list($key,$value)=explode('=',$queryPart,2);
+			@list($key,$value)=explode('=',$queryPart,2);
 			$key=rawurldecode($key);
 			if(empty($value))
 				$value=null;
