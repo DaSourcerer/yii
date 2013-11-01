@@ -1,0 +1,5 @@
+5; some stuff here that should be ignored
+hello
+7
+ world!
+0
