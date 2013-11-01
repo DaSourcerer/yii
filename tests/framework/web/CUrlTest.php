@@ -16,10 +16,10 @@ class CUrlTest extends CTestCase
 		$this->assertEmpty($url->pass);
 		$this->assertEmpty($url->port);
 		$this->assertEquals('/foo', $url->path);
-		$this->assertEquals('bar=', $url->query);
+		$this->assertEquals('bar', $url->query);
 		$this->assertNotEmpty($url->params);
 		$this->assertArrayHasKey('bar', $url->params);
-		$this->assertEmpty($url->params['bar']);
+		$this->assertNull($url->params['bar']);
 		$this->assertEquals('baz', $url->fragment);
 	}
 
@@ -118,7 +118,7 @@ class CUrlTest extends CTestCase
 					'host'=>'www.example.org',
 					'path'=>'/foo',
 					'params'=>array(
-						'bar'=>'',
+						'bar'=>null,
 					),
 					'fragment'=>'baz',
 				),

@@ -1048,8 +1048,7 @@ class CUrl extends CComponent
 		if(is_array($query))
 			$this->params=$query;
 		else
-			//@todo parse_str() is doing some unhealthy things. Replace with userland function.
-			parse_str($query,$this->params);
+			$this->params=$this->parseQueryString($query);
 	}
 
 	/**
@@ -1057,7 +1056,7 @@ class CUrl extends CComponent
 	 */
 	public function getQuery()
 	{
-		return http_build_query($this->params);
+		return $this->buildQueryString($this->params);
 	}
 
 	/**
@@ -1172,6 +1171,91 @@ class CUrl extends CComponent
 	{
 		$string=preg_replace_callback('/%[a-f\d]{2}/','strtoupper',$string);
 		return str_replace('%7E','~',rawurlencode($string));
+	}
+
+	/**
+	 * @param $string
+	 * @return array
+	 */
+	private function parseQueryString($string)
+	{
+		$result=array();
+		$queryParts=explode('&',$string);
+		foreach($queryParts as $queryPart)
+		{
+			list($key,$value)=explode('=',$queryPart,2);
+			$key=rawurldecode($key);
+			if(empty($value))
+				$value=null;
+			else
+				$value=rawurldecode($value);
+			if(preg_match_all('/\[([^\]]*)\]/',$key,$matches,PREG_SET_ORDER)>0)
+			{
+				$key=substr($key,0,strpos($key,$matches[0][0]));
+				if(!isset($result[$key]))
+					$result[$key]=array();
+				$this->parseQueryStringHelper($result[$key],$matches,$value);
+			}
+			else
+				$result[$key]=$value;
+		}
+		return $result;
+	}
+
+	/**
+	 * @param $result
+	 * @param $matches
+	 * @param $value
+	 */
+	private function parseQueryStringHelper(&$result,$matches,$value)
+	{
+		$match=array_shift($matches);
+		if(empty($matches))
+			$result[$match[1]]=$value;
+		else
+		{
+			if(!isset($match[1]))
+				$result[$match[1]]=array();
+			$this->parseQueryStringHelper($result[$match[1]],$matches,$value);
+		}
+	}
+
+	/**
+	 * @param array $params
+	 * @return string
+	 */
+	private function buildQueryString($params)
+	{
+		$result=array();
+		foreach($params as $key=>$value)
+		{
+			if(is_array($value))
+				$result[]=$this->buildQueryStringHelper($key,$value);
+			else
+				if(empty($value))
+					$result[]=$this->urlencode($key);
+				else
+					$result[]=$this->urlencode($key).'='.$this->urlencode($value);
+		}
+		return implode('&',$result);
+	}
+
+	/**
+	 * @param string $prefix
+	 * @param array $params
+	 * @return string
+	 */
+	private function buildQueryStringHelper($prefix,$params)
+	{
+		$result=array();
+		foreach($params as $key=>$value)
+		{
+			if(is_array($value))
+				$result[]=$this->buildQueryStringHelper($prefix.'['.$key.']',$value);
+			else
+				$result[]=urlencode($prefix.'['.$key.']').'='.urlencode($value);
+		}
+		return implode('&',$result);
 	}
 }
 
