@@ -1606,6 +1606,7 @@ class CDechunkFilter extends php_user_filter {
 	 * @param integer $consumed
 	 * @param boolean $closing
 	 * @return integer
+	 * @throws CException
 	 */
 	public function filter($in, $out, &$consumed, $closing)
 	{
@@ -1626,7 +1627,7 @@ class CDechunkFilter extends php_user_filter {
 							Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CDechunkFilter');
 						$chunkSize=trim($chunkSize);
 						if(!ctype_xdigit($chunkSize))
-							return PSFS_ERR_FATAL;
+							throw new CException(Yii::t('yii','Found an invalid chunksize in stream: {chunkSize}',array('{chunkSize}'=>$chunkSize)));
 
 						$this->_chunkSize=hexdec($chunkSize);
 

@@ -35,4 +35,14 @@ class CDechunkFilterTest extends CTestCase
 		$this->assertEquals('X-Foo: Bar',$trailers);
 		fclose($stream);
 	}
+
+	/**
+	 * @expectedException CException
+	 */
+	public function testChunkedCorruptedContent()
+	{
+		$stream=fopen(dirname(__FILE__).DIRECTORY_SEPARATOR.'_fixtures'.DIRECTORY_SEPARATOR.'chunked-corrupted.txt','rb');
+		stream_filter_append($stream,'yiitestdechunkfilter');
+		stream_get_contents($stream);
+	}
 }
