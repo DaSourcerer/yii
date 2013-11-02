@@ -395,7 +395,7 @@ class CHttpMessageBody extends CComponent
 	public function getStream()
 	{
 		if(!$this->_stream)
-			$this->_stream=fopen('php://temp','rb+');
+			$this->_stream=fopen('php://temp','r+');
 		return $this->_stream;
 	}
 
@@ -647,7 +647,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	public function getRequestLine()
 	{
-		return sprintf('%s %s HTTP/%f',$this->method,empty($this->url->path)?'/':$this->url->path,$this->httpVersion).CHttpClient::CRLF;
+		return sprintf('%s %s HTTP/%.1f',$this->method,empty($this->url->path)?'/':$this->url->path,$this->httpVersion).CHttpClient::CRLF;
 	}
 
 	/**
@@ -1493,9 +1493,10 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		}
 
 		$statusLine=substr($statusLine, 5);
-		@list($response->httpVersion, $response->status, $response->message)=preg_split('[ \t]+',$statusLine,3);
+		@list($response->httpVersion, $response->status, $response->message)=preg_split('/[ \t]+/',$statusLine,3);
 		$response->httpVersion=(float)$response->httpVersion;
 		$response->status=(int)$response->status;
+		$response->message=trim($response->message);
 
 		$headers='';
 		while(($line=fgets($connection))!==false && !feof($connection) && trim($line)!='')
@@ -1504,7 +1505,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
 		$headers=str_replace("\r\n","\n",$headers);
 		//Unfold headers
-		$headers=preg_replace('/\n[ \t]+/', ' ', $headers);
+		$headers=trim(preg_replace('/\n[ \t]+/', ' ', $headers));
 		$headers=explode("\n", $headers);
 
 		foreach($headers as $line)
@@ -1516,8 +1517,11 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$filters=array();
 		$trailers='';
 
-		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['TransferEncoding'])=='chunked')
-			$filters[]=stream_filter_append($connection,'yiidechunk',STREAM_FILTER_READ,array('trailers'=>$trailers));
+		stream_copy_to_stream($connection,$response->body->stream);
+		rewind($response->body->stream);
+
+		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
+			$filters[]=stream_filter_append($request->body->stream,'yiidechunk',STREAM_FILTER_READ,array('trailers'=>&$trailers));
 
 		if(isset($response->headers['Content-Encoding']))
 		{
@@ -1526,23 +1530,16 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 				case 'identity':
 					break;
 				case 'bzip2':
-					$filters[]=stream_filter_append($connection,'bzip2.decompress',STREAM_FILTER_READ);
+					$filters[]=stream_filter_append($request->body->stream,'bzip2.decompress',STREAM_FILTER_READ);
 					break;
 				case 'gzip':
 					fseek($connection,10,SEEK_CUR);
 				case 'deflate':
-					$filters[]=stream_filter_append($connection,'zlib.inflate',STREAM_FILTER_READ);
+					$filters[]=stream_filter_append($request->body->stream,'zlib.inflate',STREAM_FILTER_READ);
 					break;
 				default:
 					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
 			}
-		}
-
-		stream_copy_to_stream($connection, $response->body->stream);
-
-		foreach($filters as $filter)
-		{
-			stream_filter_remove($filter);
 		}
 
 		return $response;
@@ -1553,7 +1550,11 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		fwrite($connection,$request->getRequestLine());
 		if($request->httpVersion >= 1)
 		{
-			$request->headers->set('Host',$request->url->filter(CUrl::COMPONENT_HOST|CUrl::COMPONENT_PORT));
+			$host=$request->url->host;
+			if($request->url->port)
+				$host.=':'.$request->url->port;
+			$request->headers->set('Host',$host);
+			$request->headers->set('Connection',($this->persistent)?'keep-alive':'close');
 			if(!in_array(strtoupper($request->method), array(CHttpClient::METHOD_GET, CHttpClient::METHOD_HEAD)))
 				$request->headers->set('Date', gmdate('D, d M Y H:i:s').' GMT');
 			if(isset($request->url->user)&&isset($request->url->pass))
@@ -1601,12 +1602,7 @@ class CDechunkFilter extends php_user_filter {
 	private $_chunkSize;
 
 	/**
-	 * @param resource $in
-	 * @param resource $out
-	 * @param integer $consumed
-	 * @param boolean $closing
-	 * @return integer
-	 * @throws CException
+	 * {@inheritdoc}
 	 */
 	public function filter($in, $out, &$consumed, $closing)
 	{
