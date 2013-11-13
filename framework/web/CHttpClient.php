@@ -395,7 +395,7 @@ class CHttpMessageBody extends CComponent
 	public function getStream()
 	{
 		if(!$this->_stream)
-			$this->_stream=fopen('php://temp','r+');
+			$this->_stream=fopen('php://temp','w+');
 		return $this->_stream;
 	}
 
@@ -1517,12 +1517,6 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 		$filters=array();
 		$trailers='';
 
-		stream_copy_to_stream($connection,$response->body->stream);
-		rewind($response->body->stream);
-
-		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
-			$filters[]=stream_filter_append($request->body->stream,'yiidechunk',STREAM_FILTER_READ,array('trailers'=>&$trailers));
-
 		if(isset($response->headers['Content-Encoding']))
 		{
 			switch(strtolower($response->headers['Content-Encoding']))
@@ -1530,17 +1524,23 @@ class CHttpClientConnector extends CBaseHttpClientConnector
 				case 'identity':
 					break;
 				case 'bzip2':
-					$filters[]=stream_filter_append($request->body->stream,'bzip2.decompress',STREAM_FILTER_READ);
+					$filters[]=stream_filter_append($response->body->stream,'bzip2.decompress',STREAM_FILTER_WRITE);
 					break;
 				case 'gzip':
 					fseek($connection,10,SEEK_CUR);
 				case 'deflate':
-					$filters[]=stream_filter_append($request->body->stream,'zlib.inflate',STREAM_FILTER_READ);
+					$filters[]=stream_filter_append($response->body->stream,'zlib.inflate',STREAM_FILTER_WRITE);
 					break;
 				default:
 					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
 			}
 		}
+
+		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
+			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
+
+		stream_copy_to_stream($connection,$response->body->stream);
+		rewind($response->body->stream);
 
 		return $response;
 	}
