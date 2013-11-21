@@ -13,7 +13,7 @@
  *
  * CHttpClient itself is mostly for higher level management. All the magic is happening in the connectors.
  *
- * @property $connector CHttpClientConnector this client's connector
+ * @property $connector CBaseHttpClientConnector this client's connector
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
@@ -63,7 +63,7 @@ class CHttpClient extends CApplicationComponent {
 	public $userAgentString=self::USER_AGENT_STRING;
 
 	private $_connector=array(
-		'class'=>'CHttpClientConnector',
+		'class'=>'CHttpClientStreamConnector',
 	);
 
 	/**
@@ -1231,14 +1231,14 @@ abstract class CBaseHttpClientConnector extends CComponent {
 }
 
 /**
- * CHttpClientConnector establishes network connectivity and does everything
+ * CHttpClientStreamConnector establishes network connectivity and does everything
  * to push and pull stuff over the wire.
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  * @since 1.1.15
  */
-class CHttpClientConnector extends CBaseHttpClientConnector {
+class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 	/**
 	 * @var array options for connections with SSL peers.
 	 * See http://www.php.net/manual/en/context.ssl.php
@@ -1357,7 +1357,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector {
 			throw new CException(Yii::t('yii','Failed to read from connection'));
 
 		if(strpos($statusLine, 'HTTP/')!==0) {
-			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			$response->httpVersion=0.9;
 			$response->status=200;
 
@@ -1404,7 +1404,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector {
 					$filters[]=stream_filter_append($response->body->stream,'zlib.inflate',STREAM_FILTER_WRITE);
 					break;
 				default:
-					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientConnector');
+					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			}
 		}
 
