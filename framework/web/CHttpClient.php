@@ -1302,7 +1302,7 @@ class CHttpClientConnector extends CBaseHttpClientConnector {
 
 		$connection=@stream_socket_client($url, $errno, $errstr, $this->timeout, $flags, $this->streamContext);
 		if($connection===false)
-			throw new CException("Failed to connect to {$url} ({$errno}): {$errstr}");
+			throw new CException(Yii::t('yii','Failed to connect to {url} ({errno}): {errstr}',array('{url}'=>$url,'{errno}'=>$errno,'{errstr}'=>$errstr)));
 		return $connection;
 	}
 
