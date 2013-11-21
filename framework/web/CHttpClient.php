@@ -1247,6 +1247,8 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 
 	public $persistent=true;
 
+	public $bufferSize=16384;
+
 	private $_streamContext;
 
 	/**
@@ -1362,7 +1364,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 			$response->status=200;
 
 			fwrite($response->body->stream,$statusLine);
-			stream_copy_to_stream($connection,$response->body->stream);
+			$this->copyStream($connection,$response->body->stream);
 
 			return $response;
 		}
@@ -1394,7 +1396,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
 			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
 
-		stream_copy_to_stream($connection,$response->body->stream);
+		$this->copyStream($connection,$response->body->stream);
 
 		if(isset($response->headers['Content-Encoding'])) {
 			switch(strtolower($response->headers['Content-Encoding'])) {
@@ -1444,7 +1446,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 			fwrite($connection,CHttpClient::CRLF);
 		}
 
-		stream_copy_to_stream($request->body->stream,$connection);
+		$this->copyStream($request->body->stream,$connection);
 	}
 
 	public function getId() {
@@ -1453,6 +1455,14 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 
 	public function getVersion() {
 		return phpversion();
+	}
+
+	protected function copyStream($source, $destination) {
+		while(($buffer=fread($source,$this->bufferSize))!==false && !feof($source)) {
+			$length=strlen($buffer);
+			if(($written=fwrite($destination, $buffer))!=$length)
+				throw new CException(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$length)));
+		}
 	}
 }
 
