@@ -1391,28 +1391,32 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		$filters=array();
 		$trailers='';
 
+		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
+			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
+
+		stream_copy_to_stream($connection,$response->body->stream);
+
 		if(isset($response->headers['Content-Encoding'])) {
 			switch(strtolower($response->headers['Content-Encoding'])) {
 				case 'identity':
 					break;
 				case 'bzip2':
-					$filters[]=stream_filter_append($response->body->stream,'bzip2.decompress',STREAM_FILTER_WRITE);
+					$filters[]=stream_filter_append($response->body->stream,'bzip2.decompress',STREAM_FILTER_READ);
 					break;
 				case 'gzip':
-					fseek($connection,10,SEEK_CUR);
 				case 'deflate':
-					$filters[]=stream_filter_append($response->body->stream,'zlib.inflate',STREAM_FILTER_WRITE);
+					$offset=0;
+					if(stream_get_contents($response->body->stream,3,0)==="\x1f\x8b\x08")
+						$offset=10;
+					fseek($response->body->stream,$offset,SEEK_SET);
+					$filters[]=stream_filter_append($response->body->stream,'zlib.inflate',STREAM_FILTER_READ);
 					break;
 				default:
 					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			}
 		}
-
-		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
-			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
-
-		stream_copy_to_stream($connection,$response->body->stream);
-		rewind($response->body->stream);
+		else
+			rewind($response->body->stream);
 
 		return $response;
 	}
