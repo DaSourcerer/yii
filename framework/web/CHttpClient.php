@@ -373,6 +373,10 @@ class CHttpMessageBody extends CComponent {
 		$this->_stream=$stream;
 	}
 
+	public function isEmpty() {
+		return !$this->_stream;
+	}
+
 	/**
 	 * @param CHeaderCollection $headers
 	 */
@@ -1446,7 +1450,8 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 			fwrite($connection,CHttpClient::CRLF);
 		}
 
-		$this->copyStream($request->body->stream,$connection);
+		if(!$request->body->isEmpty())
+			$this->copyStream($request->body->stream,$connection);
 	}
 
 	public function getId() {
