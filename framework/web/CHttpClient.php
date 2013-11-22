@@ -1493,6 +1493,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 					break;
 				case 'bzip2':
 					$filters[]=stream_filter_append($response->body->stream,'bzip2.decompress',STREAM_FILTER_READ);
+					rewind($response->body->stream);
 					break;
 				case 'gzip':
 				case 'deflate':
