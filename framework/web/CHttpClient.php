@@ -1468,16 +1468,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		while(($line=fgets($connection))!==false && !feof($connection) && trim($line)!='')
 			$headers.=$line;
 
-		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
-		$headers=str_replace("\r\n","\n",$headers);
-		//Unfold headers
-		$headers=trim(preg_replace('/\n[ \t]+/',' ',$headers));
-		$headers=explode("\n",$headers);
-
-		foreach($headers as $line) {
-			@list($header,$value)=explode(':',$line,2);
-			$response->headers->add(trim($header),trim($value));
-		}
+		$this->parseHeaders($headers,$response->headers);
 
 		$filters=array();
 		$trailers='';
@@ -1509,6 +1500,9 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		} else
 			rewind($response->body->stream);
 
+		if(!empty($trailers))
+			$this->parseHeaders($trailers,$response->headers);
+
 		return $response;
 	}
 
@@ -1538,6 +1532,20 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 
 		if(!$request->body->isEmpty())
 			$this->copyStream($request->body->stream,$connection);
+	}
+
+	protected function parseHeaders($headers,CHeaderCollection &$collection)
+	{
+		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
+		$headers=str_replace("\r\n","\n",$headers);
+		//Unfold headers
+		$headers=trim(preg_replace('/\n[ \t]+/',' ',$headers));
+		$headers=explode("\n",$headers);
+
+		foreach($headers as $line) {
+			@list($header,$value)=explode(':',$line,2);
+			$collection->add(trim($header),trim($value));
+		}
 	}
 
 	public function getId()
