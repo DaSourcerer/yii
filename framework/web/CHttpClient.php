@@ -19,7 +19,8 @@
  * @package system.web
  * @since 1.1.15
  */
-class CHttpClient extends CApplicationComponent {
+class CHttpClient extends CApplicationComponent
+{
 	/**
 	 * HTTP line terminator
 	 */
@@ -69,7 +70,8 @@ class CHttpClient extends CApplicationComponent {
 	/**
 	 * @see CApplicationComponent::init()
 	 */
-	public function init() {
+	public function init()
+	{
 		parent::init();
 
 		if($this->userAgentString)
@@ -91,7 +93,8 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3
 	 */
-	public function get($request) {
+	public function get($request)
+	{
 		return $this->craftRequest($request,self::METHOD_GET);
 	}
 
@@ -106,8 +109,9 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
 	 */
-	public function head($request) {
-		return $this->craftRequest($request, self::METHOD_HEAD);
+	public function head($request)
+	{
+		return $this->craftRequest($request,self::METHOD_HEAD);
 	}
 
 	/**
@@ -122,7 +126,8 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.5
 	 */
-	public function post($request, $body=null, $mimeType=null) {
+	public function post($request,$body=null,$mimeType=null)
+	{
 		$request=$this->craftRequest($request,self::METHOD_POST);
 		if($body instanceof CHttpMessageBody)
 			$request->body=$body;
@@ -143,7 +148,8 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.6
 	 */
-	public function put($request, $body=null, $mimeType=null) {
+	public function put($request,$body=null,$mimeType=null)
+	{
 		$request=$this->craftRequest($request,self::METHOD_PUT);
 		if($body instanceof CHttpMessageBody)
 			$request->body=$body;
@@ -160,7 +166,8 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientRequest
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.7
 	 */
-	public function delete($request) {
+	public function delete($request)
+	{
 		return $this->craftRequest($request,self::METHOD_DELETE);
 	}
 
@@ -171,14 +178,15 @@ class CHttpClient extends CApplicationComponent {
 	 * @return CHttpClientResponse the response to the sent request
 	 * @throws CException
 	 */
-	public function send($request) {
-		if(is_array($request)) {
+	public function send($request)
+	{
+		if(is_array($request)){
 			$r=new CHttpClientRequest;
 			foreach($request as $key=>$value)
 				$r->$key=$value;
 			$request=$r;
 		}
-		if(!in_array($request->url->scheme, array('http', 'https')))
+		if(!in_array($request->url->scheme,array('http','https')))
 			throw new CException(Yii::t('yii','Unsupported protocol: {scheme}',array('{scheme}'=>$request->url->scheme)));
 		$request->headers->mergeWith($this->headers);
 		$request->client=$this;
@@ -190,7 +198,8 @@ class CHttpClient extends CApplicationComponent {
 	 *
 	 * @param array|CBaseHttpClientConnector $connector
 	 */
-	public function setConnector($connector) {
+	public function setConnector($connector)
+	{
 		$this->_connector=$connector;
 	}
 
@@ -199,8 +208,9 @@ class CHttpClient extends CApplicationComponent {
 	 *
 	 * @return CBaseHttpClientConnector
 	 */
-	public function getConnector() {
-		if(is_array($this->_connector)) {
+	public function getConnector()
+	{
+		if(is_array($this->_connector)){
 			$this->_connector=Yii::createComponent($this->_connector);
 			$this->_connector->init();
 		}
@@ -240,7 +250,8 @@ class CHttpClient extends CApplicationComponent {
  * @package system.web
  * @since 1.1.15
  */
-abstract class CHttpClientMessage extends CComponent {
+abstract class CHttpClientMessage extends CComponent
+{
 	/**
 	 * @var CHeaderCollection
 	 */
@@ -263,7 +274,8 @@ abstract class CHttpClientMessage extends CComponent {
 	 * Set the set of headers associated with this message.
 	 * @param CHeaderCollection|array $headers
 	 */
-	public function setHeaders($headers) {
+	public function setHeaders($headers)
+	{
 		if(is_array($headers))
 			$this->_headers=new CHeaderCollection($headers);
 		else
@@ -274,7 +286,8 @@ abstract class CHttpClientMessage extends CComponent {
 	 * Get the set of headers associated with this message.
 	 * @return CHeaderCollection
 	 */
-	public function getHeaders() {
+	public function getHeaders()
+	{
 		if(!$this->_headers)
 			$this->_headers=new CHeaderCollection;
 		return $this->_headers;
@@ -284,7 +297,8 @@ abstract class CHttpClientMessage extends CComponent {
 	 * Set the body of this message.
 	 * @param CHttpMessageBody $body
 	 */
-	public function setBody(CHttpMessageBody $body) {
+	public function setBody(CHttpMessageBody $body)
+	{
 		$this->_body=$body;
 	}
 
@@ -292,7 +306,8 @@ abstract class CHttpClientMessage extends CComponent {
 	 * Get the body of this message.
 	 * @return CHttpMessageBody
 	 */
-	public function getBody() {
+	public function getBody()
+	{
 		if(!$this->_body)
 			$this->_body=new CHttpMessageBody;
 		return $this->_body;
@@ -309,7 +324,8 @@ abstract class CHttpClientMessage extends CComponent {
  * @package system.web
  * @since 1.1.15
  */
-class CHttpMessageBody extends CComponent {
+class CHttpMessageBody extends CComponent
+{
 	/**
 	 * @var resource
 	 */
@@ -324,10 +340,11 @@ class CHttpMessageBody extends CComponent {
 	 * @param mixed $content
 	 * @param string $mimeType
 	 */
-	public function __construct($content=null, $mimeType=null) {
-		if($content) {
-			if($mimeType==null&&$content!=null) {
-				if(is_string($content)) {
+	public function __construct($content=null,$mimeType=null)
+	{
+		if($content){
+			if($mimeType==null && $content!=null){
+				if(is_string($content)){
 					fwrite($this->stream,$content);
 					$this->headers->add('Content-Type','text/plaintext');
 				} elseif(is_stream($content)) {
@@ -360,7 +377,8 @@ class CHttpMessageBody extends CComponent {
 	/**
 	 * @return resource
 	 */
-	public function getStream() {
+	public function getStream()
+	{
 		if(!$this->_stream)
 			$this->_stream=fopen('php://temp','w+');
 		return $this->_stream;
@@ -369,25 +387,29 @@ class CHttpMessageBody extends CComponent {
 	/**
 	 * @param resource $stream
 	 */
-	public function setStream($stream) {
+	public function setStream($stream)
+	{
 		$this->_stream=$stream;
 	}
 
-	public function isEmpty() {
+	public function isEmpty()
+	{
 		return !$this->_stream;
 	}
 
 	/**
 	 * @param CHeaderCollection $headers
 	 */
-	public function setHeaders(CHeaderCollection $headers) {
+	public function setHeaders(CHeaderCollection $headers)
+	{
 		$this->_headers=$headers;
 	}
 
 	/**
 	 * @return CHeaderCollection
 	 */
-	public function getHeaders() {
+	public function getHeaders()
+	{
 		if(!$this->_headers)
 			$this->_headers=new CHeaderCollection;
 		return $this->_headers;
@@ -401,7 +423,8 @@ class CHttpMessageBody extends CComponent {
  * @package system.web
  * @since 1.1.15
  */
-class CHttpClientResponse extends CHttpClientMessage {
+class CHttpClientResponse extends CHttpClientMessage
+{
 	/**
 	 * @var integer the HTTP status code
 	 */
@@ -423,8 +446,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
 	 */
-	public function isInformational() {
-		return $this->status>=100&&$this->status<200;
+	public function isInformational()
+	{
+		return $this->status >= 100 && $this->status < 200;
 	}
 
 	/**
@@ -433,8 +457,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2
 	 */
-	public function isSuccessful() {
-		return $this->status==304||$this->status>=200&&$this->status<300;
+	public function isSuccessful()
+	{
+		return $this->status==304 || $this->status >= 200 && $this->status < 300;
 	}
 
 	/**
@@ -443,8 +468,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3
 	 */
-	public function isRedirect() {
-		return $this->status!=304&&$this->status>=300&&$this->status<400;
+	public function isRedirect()
+	{
+		return $this->status!=304 && $this->status >= 300 && $this->status < 400;
 	}
 
 	/**
@@ -453,8 +479,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4
 	 */
-	public function isClientError() {
-		return $this->status>=400&&$this->status<500;
+	public function isClientError()
+	{
+		return $this->status >= 400 && $this->status < 500;
 	}
 
 	/**
@@ -463,8 +490,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 * @return boolean
 	 * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.1
 	 */
-	public function isServerError() {
-		return $this->status>=500&&$this->status<600;
+	public function isServerError()
+	{
+		return $this->status >= 500 && $this->status < 600;
 	}
 
 	/**
@@ -473,8 +501,9 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 *
 	 * @return boolean
 	 */
-	public function isError() {
-		return $this->isClientError()||$this->isServerError();
+	public function isError()
+	{
+		return $this->isClientError() || $this->isServerError();
 	}
 
 	/**
@@ -482,7 +511,8 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 *
 	 * @return boolean
 	 */
-	public function isUnknown() {
+	public function isUnknown()
+	{
 		if($this->isInformational())
 			return false;
 		if($this->isSuccessful())
@@ -499,10 +529,11 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 *
 	 * @return bool
 	 */
-	public function isCacheable() {
+	public function isCacheable()
+	{
 		if(!$this->request->isCacheable())
 			return false;
-		if(!isset($this->headers['ETag'])&&!isset($this->headers['Last-Modified']))
+		if(!isset($this->headers['ETag']) && !isset($this->headers['Last-Modified']))
 			return false;
 		return true;
 	}
@@ -512,7 +543,8 @@ class CHttpClientResponse extends CHttpClientMessage {
 	 *
 	 * @return bool
 	 */
-	public function isCached() {
+	public function isCached()
+	{
 		return $this->status==304;
 	}
 }
@@ -529,7 +561,8 @@ class CHttpClientResponse extends CHttpClientMessage {
  * @package system.web
  * @since 1.1.15
  */
-class CHttpClientRequest extends CHttpClientMessage {
+class CHttpClientRequest extends CHttpClientMessage
+{
 	/** @var string */
 	public $method=CHttpClient::METHOD_GET;
 	/** @var CHttpClient */
@@ -545,14 +578,16 @@ class CHttpClientRequest extends CHttpClientMessage {
 	/**
 	 * @return CHttpClientResponse
 	 */
-	public function send() {
+	public function send()
+	{
 		if($this->client)
 			return $this->client->send($this);
 		else
 			return Yii::app()->http->send($this);
 	}
 
-	public function __construct($url=null, $method=CHttpClient::METHOD_GET) {
+	public function __construct($url=null,$method=CHttpClient::METHOD_GET)
+	{
 		$this->url=$url;
 		$this->method=$method;
 	}
@@ -562,7 +597,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 *
 	 * @param CUrl|array|string $url
 	 */
-	public function setUrl($url) {
+	public function setUrl($url)
+	{
 		if($url instanceof CUrl)
 			$this->_url=$url;
 		else
@@ -574,7 +610,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 *
 	 * @return CUrl
 	 */
-	public function getUrl() {
+	public function getUrl()
+	{
 		return $this->_url;
 	}
 
@@ -584,7 +621,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 * @return CHttpClientRequest
 	 * @throws CException
 	 */
-	public static function fromRedirect(CHttpClientResponse $response) {
+	public static function fromRedirect(CHttpClientResponse $response)
+	{
 		if(!isset($response->headers['Location']))
 			throw new CException(Yii::t('yii','Got a redirect without new location'));
 		$request=new CHttpClientRequest($response->headers['Location'],$response->request->method);
@@ -597,7 +635,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 * Get the HTTP request line for this request
 	 * @return string
 	 */
-	public function getRequestLine() {
+	public function getRequestLine()
+	{
 		return sprintf('%s %s HTTP/%.1f',$this->method,empty($this->url->path)?'/':$this->url->path,$this->httpVersion).CHttpClient::CRLF;
 	}
 
@@ -608,7 +647,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 * @param $value The value of the header to add
 	 * @return CHttpClientRequest This request
 	 */
-	public function addHeader($key,$value) {
+	public function addHeader($key,$value)
+	{
 		$this->headers->add($key,$value);
 		return $this;
 	}
@@ -622,7 +662,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 * @param $value The value of the header to set
 	 * @return CHttpClientRequest This request
 	 */
-	public function setHeader($key,$value) {
+	public function setHeader($key,$value)
+	{
 		$this->headers->set($key,$value);
 		return $this;
 	}
@@ -633,7 +674,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 * @param $key The key of the header to be removed
 	 * @return CHttpClientRequest This request
 	 */
-	public function removeHeader($key) {
+	public function removeHeader($key)
+	{
 		$this->headers->remove($key);
 		return $this;
 	}
@@ -643,7 +685,8 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 *
 	 * @return CHttpClientRequest This request
 	 */
-	public function disableCaching() {
+	public function disableCaching()
+	{
 		$this->_cacheable=false;
 		return $this;
 	}
@@ -653,8 +696,9 @@ class CHttpClientRequest extends CHttpClientMessage {
 	 *
 	 * @return bool true if the response to this request can be cached
 	 */
-	public function isCacheable() {
-		if($this->httpVersion<1)
+	public function isCacheable()
+	{
+		if($this->httpVersion < 1)
 			return false;
 		if(!in_array(strtoupper($this->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD)))
 			return false;
@@ -674,14 +718,16 @@ class CHttpClientRequest extends CHttpClientMessage {
  * @package system.web
  * @since 1.1.15
  */
-class CHeaderCollection extends CMap {
+class CHeaderCollection extends CMap
+{
 
 	/**
 	 * @param mixed $key
 	 * @param mixed $value
 	 * @see CMap::add
 	 */
-	public function add($key,$value) {
+	public function add($key,$value)
+	{
 		$key=strtolower($key);
 		if($this->contains($key))
 			parent::add($key,array_merge((array)$this->itemAt($key),(array)$value));
@@ -694,7 +740,8 @@ class CHeaderCollection extends CMap {
 	 * @param $value
 	 * @see CMap::add
 	 */
-	public function set($key,$value) {
+	public function set($key,$value)
+	{
 		parent::add(strtolower($key),$value);
 	}
 
@@ -703,7 +750,8 @@ class CHeaderCollection extends CMap {
 	 * @return mixed
 	 * @see CMap::add
 	 */
-	public function itemAt($key) {
+	public function itemAt($key)
+	{
 		return parent::itemAt(strtolower($key));
 	}
 
@@ -712,7 +760,8 @@ class CHeaderCollection extends CMap {
 	 * @return mixed
 	 * @see CMap::remove
 	 */
-	public function remove($key) {
+	public function remove($key)
+	{
 		return parent::remove(strtolower($key));
 	}
 
@@ -721,11 +770,13 @@ class CHeaderCollection extends CMap {
 	 * @return bool
 	 * @see CMap::contains
 	 */
-	public function contains($key) {
+	public function contains($key)
+	{
 		return parent::contains(strtolower($key));
 	}
 
-	public function __toString() {
+	public function __toString()
+	{
 		$result='';
 		foreach($this->toArray() as $name=>$values) {
 			$name=implode('-',array_map('ucfirst',explode('-',$name)));
@@ -762,7 +813,8 @@ class CHeaderCollection extends CMap {
  * @package system.web
  * @since 1.1.15
  */
-class CUrl extends CComponent {
+class CUrl extends CComponent
+{
 	const COMPONENT_SCHEME=0x01;
 	const COMPONENT_USER=0x02;
 	const COMPONENT_PASS=0x04;
@@ -828,7 +880,8 @@ class CUrl extends CComponent {
 	 * @param CUrl|array|string $url
 	 * @throws CException
 	 */
-	public function __construct($url=null) {
+	public function __construct($url=null)
+	{
 		if($url instanceof self)
 			$url=$url->toArray();
 		elseif(is_string($url)) {
@@ -839,7 +892,7 @@ class CUrl extends CComponent {
 			$url=$parsedUrl;
 		}
 
-		if(is_array($url)) {
+		if(is_array($url)){
 			foreach($url as $key=>$value)
 				if(!empty($value))
 					$this->$key=$value;
@@ -849,14 +902,16 @@ class CUrl extends CComponent {
 	/**
 	 * @param string $scheme
 	 */
-	public function setScheme($scheme) {
+	public function setScheme($scheme)
+	{
 		$this->_scheme=strtolower($scheme);
 	}
 
 	/**
 	 * @return string
 	 */
-	public function getScheme() {
+	public function getScheme()
+	{
 		return $this->_scheme;
 	}
 
@@ -864,14 +919,16 @@ class CUrl extends CComponent {
 	 * Check if an URL is absolute or not
 	 * @return bool
 	 */
-	public function isAbsolute() {
+	public function isAbsolute()
+	{
 		return !empty($this->_scheme);
 	}
 
 	/**
 	 * @param string $host
 	 */
-	public function setHost($host) {
+	public function setHost($host)
+	{
 		//@todo create a single instance of idna_convert and reuse that instead of creating a new instance on every call
 		require_once(Yii::getPathOfAlias('system.vendors.Net_IDNA2.Net').DIRECTORY_SEPARATOR.'IDNA2.php');
 		$idna=new Net_IDNA2;
@@ -881,42 +938,48 @@ class CUrl extends CComponent {
 	/**
 	 * @return string
 	 */
-	public function getHost() {
+	public function getHost()
+	{
 		return $this->_host;
 	}
 
 	/**
 	 * @param string $user
 	 */
-	public function setUser($user) {
+	public function setUser($user)
+	{
 		$this->_user=$this->urlencode($user);
 	}
 
 	/**
 	 * @return string
 	 */
-	public function getUser() {
+	public function getUser()
+	{
 		return $this->_user;
 	}
 
 	/**
 	 * @param string $pass
 	 */
-	public function setPass($pass) {
+	public function setPass($pass)
+	{
 		$this->_pass=$this->urlencode($pass);
 	}
 
 	/**
 	 * @return string
 	 */
-	public function getPass() {
+	public function getPass()
+	{
 		return $this->_pass;
 	}
 
 	/**
 	 * @param integer $port
 	 */
-	public function setPort($port) {
+	public function setPort($port)
+	{
 		if($port!=getservbyname($this->scheme,'tcp'))
 			$this->_port=$port;
 	}
@@ -924,21 +987,23 @@ class CUrl extends CComponent {
 	/**
 	 * @return integer
 	 */
-	public function getPort() {
+	public function getPort()
+	{
 		return $this->_port;
 	}
 
 	/**
 	 * @param string $path
 	 */
-	public function setPath($path) {
+	public function setPath($path)
+	{
 		//@todo: RFC 3986, sec 6.2.2ff
 		// thx to hashguy on ##php@freenode for coming up with this
 		$normalizedPath=array();
 		foreach(explode('/',$path) as $segment) {
 			if($segment=='.')
 				continue;
-			if($segment=='..') {
+			if($segment=='..'){
 				array_pop($normalizedPath);
 				continue;
 			}
@@ -954,14 +1019,16 @@ class CUrl extends CComponent {
 	/**
 	 * @return string
 	 */
-	public function getPath() {
+	public function getPath()
+	{
 		return $this->_path;
 	}
 
 	/**
 	 * @param string $query
 	 */
-	public function setQuery($query) {
+	public function setQuery($query)
+	{
 		if(is_array($query))
 			$this->params=$query;
 		else
@@ -971,7 +1038,8 @@ class CUrl extends CComponent {
 	/**
 	 * @return string
 	 */
-	public function getQuery() {
+	public function getQuery()
+	{
 		return $this->buildQueryString($this->params);
 	}
 
@@ -981,7 +1049,8 @@ class CUrl extends CComponent {
 	 * @param integer $bitmap
 	 * @return CUrl
 	 */
-	public function strip($bitmap) {
+	public function strip($bitmap)
+	{
 		$components=$this->toArray();
 		foreach(self::$_componentMap as $key=>$component)
 			if($key&$bitmap)
@@ -994,7 +1063,8 @@ class CUrl extends CComponent {
 	 * @param int $bitmap
 	 * @return CUrl
 	 */
-	public function filter($bitmap=0x00) {
+	public function filter($bitmap=0x00)
+	{
 		$components=$this->toArray();
 		foreach(self::$_componentMap as $key=>$component)
 			if(!($key&$bitmap))
@@ -1007,7 +1077,8 @@ class CUrl extends CComponent {
 	 * @throws CException
 	 * @return CUrl
 	 */
-	public function resolve($url) {
+	public function resolve($url)
+	{
 		if(!$url instanceof self)
 			$url=new self($url);
 
@@ -1028,7 +1099,8 @@ class CUrl extends CComponent {
 	/**
 	 * @return array
 	 */
-	public function toArray() {
+	public function toArray()
+	{
 		return array(
 			'scheme'=>$this->scheme,
 			'user'=>$this->_user,
@@ -1044,14 +1116,15 @@ class CUrl extends CComponent {
 	/**
 	 * @return string
 	 */
-	public function __toString() {
+	public function __toString()
+	{
 		$result='';
 		$components=$this->toArray();
 		if(!empty($components['scheme']))
 			$result.=$components['scheme'].':';
 		if(!empty($components['user']) || !empty($components['host']))
 			$result.='//';
-		if(!empty($components['user'])) {
+		if(!empty($components['user'])){
 			$result.=$components['user'];
 			if(!empty($components['pass']))
 				$result.=':'.$components['pass'];
@@ -1061,11 +1134,11 @@ class CUrl extends CComponent {
 			$result.=$components['host'];
 		if(!empty($components['port']))
 			$result.=':'.$components['port'];
-		if(!empty($components['path'])) {
+		if(!empty($components['path'])){
 			if($components['path']{0}!=='/')
 				$result.='/';
 			$result.=$components['path'];
-		} elseif(!empty($components['query']) ||  !empty($components['fragment']))
+		} elseif(!empty($components['query']) || !empty($components['fragment']))
 			$result.='/';
 		if(!empty($components['query']))
 			$result.='?'.$components['query'];
@@ -1074,7 +1147,8 @@ class CUrl extends CComponent {
 		return $result;
 	}
 
-	private function urlencode($string) {
+	private function urlencode($string)
+	{
 		$string=preg_replace_callback('/%[a-f\d]{2}/','strtoupper',$string);
 		return str_replace('%7E','~',rawurlencode($string));
 	}
@@ -1083,7 +1157,8 @@ class CUrl extends CComponent {
 	 * @param $string
 	 * @return array
 	 */
-	private function parseQueryString($string) {
+	private function parseQueryString($string)
+	{
 		$result=array();
 		$queryParts=explode('&',$string);
 		foreach($queryParts as $queryPart) {
@@ -1093,13 +1168,12 @@ class CUrl extends CComponent {
 				$value=null;
 			else
 				$value=rawurldecode($value);
-			if(preg_match_all('/\[([^\]]*)\]/',$key,$matches,PREG_SET_ORDER)>0) {
+			if(preg_match_all('/\[([^\]]*)\]/',$key,$matches,PREG_SET_ORDER) > 0){
 				$key=substr($key,0,strpos($key,$matches[0][0]));
 				if(!isset($result[$key]))
 					$result[$key]=array();
 				$this->parseQueryStringHelper($result[$key],$matches,$value);
-			}
-			else
+			} else
 				$result[$key]=$value;
 		}
 		return $result;
@@ -1110,7 +1184,8 @@ class CUrl extends CComponent {
 	 * @param $matches
 	 * @param $value
 	 */
-	private function parseQueryStringHelper(&$result,$matches,$value) {
+	private function parseQueryStringHelper(&$result,$matches,$value)
+	{
 		$match=array_shift($matches);
 		if(empty($matches))
 			$result[$match[1]]=$value;
@@ -1125,7 +1200,8 @@ class CUrl extends CComponent {
 	 * @param array $params
 	 * @return string
 	 */
-	private function buildQueryString($params) {
+	private function buildQueryString($params)
+	{
 		$result=array();
 		foreach($params as $key=>$value) {
 			if(is_array($value))
@@ -1144,10 +1220,10 @@ class CUrl extends CComponent {
 	 * @param array $params
 	 * @return string
 	 */
-	private function buildQueryStringHelper($prefix,$params) {
+	private function buildQueryStringHelper($prefix,$params)
+	{
 		$result=array();
-		foreach($params as $key=>$value)
-		{
+		foreach($params as $key=>$value) {
 			if(is_array($value))
 				$result[]=$this->buildQueryStringHelper($prefix.'['.$key.']',$value);
 			else
@@ -1172,7 +1248,8 @@ class CUrl extends CComponent {
  * @package system.web
  * @since 1.1.15
  */
-abstract class CBaseHttpClientConnector extends CComponent {
+abstract class CBaseHttpClientConnector extends CComponent
+{
 	/**
 	 * Maximum number of seconds for timeouts
 	 * @var integer
@@ -1223,8 +1300,9 @@ abstract class CBaseHttpClientConnector extends CComponent {
 	 * @return CCache
 	 * @see $cacheID
 	 */
-	public function getCache() {
-		if($this->_cache===null) {
+	public function getCache()
+	{
+		if($this->_cache===null){
 			$this->_cache=Yii::app()->getComponent($this->cacheID);
 			//For the console
 			if($this->_cache===null)
@@ -1242,7 +1320,8 @@ abstract class CBaseHttpClientConnector extends CComponent {
  * @package system.web
  * @since 1.1.15
  */
-class CHttpClientStreamConnector extends CBaseHttpClientConnector {
+class CHttpClientStreamConnector extends CBaseHttpClientConnector
+{
 	/**
 	 * @var array options for connections with SSL peers.
 	 * See http://www.php.net/manual/en/context.ssl.php
@@ -1262,10 +1341,11 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		'TE'=>'chunked, trailers',
 	);
 
-	public function init() {
+	public function init()
+	{
 		$supportedEncodings=array();
 		if(extension_loaded('zlib'))
-			array_push($supportedEncodings, 'gzip', 'deflate');
+			array_push($supportedEncodings,'gzip','deflate');
 
 		if(extension_loaded('bz2'))
 			$supportedEncodings[]='bzip2';
@@ -1276,23 +1356,25 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		stream_filter_register('yiidechunk','CDechunkFilter');
 	}
 
-	public function getStreamContext() {
-		if($this->_streamContext===null) {
+	public function getStreamContext()
+	{
+		if($this->_streamContext===null){
 			$this->_streamContext=stream_context_create();
 			foreach($this->ssl as $option=>$value) {
-				if(!stream_context_set_option($this->_streamContext, 'ssl', $option, $value))
-					throw new CException(Yii::t('yii','Failed to set SSL option {option}', array('{option}'=>$option)));
+				if(!stream_context_set_option($this->_streamContext,'ssl',$option,$value))
+					throw new CException(Yii::t('yii','Failed to set SSL option {option}',array('{option}'=>$option)));
 			}
 			if(!isset($this->ssl['cafile']))
-				stream_context_set_option($this->_streamContext, 'ssl', 'cafile', Yii::getPathOfAlias('system.web').'cacert.pem');
+				stream_context_set_option($this->_streamContext,'ssl','cafile',Yii::getPathOfAlias('system.web').'cacert.pem');
 		}
 		return $this->_streamContext;
 	}
 
-	public function getConnection(CUrl $url) {
+	public function getConnection(CUrl $url)
+	{
 		$url=$url->filter(CUrl::COMPONENT_SCHEME|CUrl::COMPONENT_HOST|Curl::COMPONENT_PORT);
 
-		if($url->scheme=='https') {
+		if($url->scheme=='https'){
 			$url->scheme='ssl';
 			if(!isset($url->port))
 				$url->port=443;
@@ -1306,35 +1388,37 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		if($this->persistent)
 			$flags|=STREAM_CLIENT_PERSISTENT;
 
-		$connection=@stream_socket_client($url, $errno, $errstr, $this->timeout, $flags, $this->streamContext);
+		$connection=@stream_socket_client($url,$errno,$errstr,$this->timeout,$flags,$this->streamContext);
 		if($connection===false)
 			throw new CException(Yii::t('yii','Failed to connect to {url} ({errno}): {errstr}',array('{url}'=>$url,'{errno}'=>$errno,'{errstr}'=>$errstr)));
 		return $connection;
 	}
 
 
-	public function send(CHttpClientRequest $request) {
-		return $this->sendInternal($request, $this->maxRedirects);
+	public function send(CHttpClientRequest $request)
+	{
+		return $this->sendInternal($request,$this->maxRedirects);
 	}
 
-	protected function sendInternal(CHttpClientRequest $request, $redirectsLeft) {
+	protected function sendInternal(CHttpClientRequest $request,$redirectsLeft)
+	{
 		$connection=$this->getConnection($request->url);
 
 		$request->headers->mergeWith($this->_headers);
-		$this->sendRequest($connection, $request);
+		$this->sendRequest($connection,$request);
 
-		$response=$this->readResponse($connection, $request);
+		$response=$this->readResponse($connection,$request);
 
-		if($response->isRedirect()) {
+		if($response->isRedirect()){
 			--$redirectsLeft;
 			if($redirectsLeft==0)
 				throw new CException(Yii::t('yii','Maximum number of HTTP redirects reached'));
-			$response = $this->sendInternal(CHttpClientRequest::fromRedirect($response), $redirectsLeft);
+			$response=$this->sendInternal(CHttpClientRequest::fromRedirect($response),$redirectsLeft);
 		}
 
-		if($response->isCacheable()) {
+		if($response->isCacheable()){
 			$cacheHeaders=array();
-			if(isset($response->headers['ETag'])) {
+			if(isset($response->headers['ETag'])){
 				$etag=$response->headers['ETag'];
 				//Handle weak etags
 				if(stripos('W/',$etag)===0)
@@ -1356,13 +1440,14 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 	 * @return CHttpClientResponse
 	 * @throws CException
 	 */
-	protected function readResponse($connection, CHttpClientRequest $request) {
+	protected function readResponse($connection,CHttpClientRequest $request)
+	{
 		$response=new CHttpClientResponse;
 		$response->request=$request;
 		if(!($statusLine=@fgets($connection)))
 			throw new CException(Yii::t('yii','Failed to read from connection'));
 
-		if(strpos($statusLine, 'HTTP/')!==0) {
+		if(strpos($statusLine,'HTTP/')!==0){
 			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			$response->httpVersion=0.9;
 			$response->status=200;
@@ -1373,8 +1458,8 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 			return $response;
 		}
 
-		$statusLine=substr($statusLine, 5);
-		@list($response->httpVersion, $response->status, $response->message)=preg_split('/[ \t]+/',$statusLine,3);
+		$statusLine=substr($statusLine,5);
+		@list($response->httpVersion,$response->status,$response->message)=preg_split('/[ \t]+/',$statusLine,3);
 		$response->httpVersion=(float)$response->httpVersion;
 		$response->status=(int)$response->status;
 		$response->message=trim($response->message);
@@ -1386,23 +1471,23 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
 		$headers=str_replace("\r\n","\n",$headers);
 		//Unfold headers
-		$headers=trim(preg_replace('/\n[ \t]+/', ' ', $headers));
-		$headers=explode("\n", $headers);
+		$headers=trim(preg_replace('/\n[ \t]+/',' ',$headers));
+		$headers=explode("\n",$headers);
 
 		foreach($headers as $line) {
-			@list($header, $value)=explode(':', $line, 2);
-			$response->headers->add(trim($header), trim($value));
+			@list($header,$value)=explode(':',$line,2);
+			$response->headers->add(trim($header),trim($value));
 		}
 
 		$filters=array();
 		$trailers='';
 
-		if(isset($response->headers['Transfer-Encoding'])&&strtolower($response->headers['Transfer-Encoding'])=='chunked')
+		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
 			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
 
 		$this->copyStream($connection,$response->body->stream);
 
-		if(isset($response->headers['Content-Encoding'])) {
+		if(isset($response->headers['Content-Encoding'])){
 			switch(strtolower($response->headers['Content-Encoding'])) {
 				case 'identity':
 					break;
@@ -1420,26 +1505,26 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 				default:
 					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			}
-		}
-		else
+		} else
 			rewind($response->body->stream);
 
 		return $response;
 	}
 
-	protected function sendRequest($connection, CHttpClientRequest $request) {
+	protected function sendRequest($connection,CHttpClientRequest $request)
+	{
 		fwrite($connection,$request->getRequestLine());
-		if($request->httpVersion >= 1) {
+		if($request->httpVersion >= 1){
 			$host=$request->url->host;
 			if($request->url->port)
 				$host.=':'.$request->url->port;
 			$request->headers->set('Host',$host);
 			$request->headers->set('Connection',($this->persistent)?'keep-alive':'close');
-			if(!in_array(strtoupper($request->method), array(CHttpClient::METHOD_GET, CHttpClient::METHOD_HEAD)))
-				$request->headers->set('Date', gmdate('D, d M Y H:i:s').' GMT');
-			if(isset($request->url->user)&&isset($request->url->pass))
+			if(!in_array(strtoupper($request->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD)))
+				$request->headers->set('Date',gmdate('D, d M Y H:i:s').' GMT');
+			if(isset($request->url->user) && isset($request->url->pass))
 				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
-			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString()))!==false) {
+			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString()))!==false){
 				if(isset($cacheHeaders['etag']))
 					$request->headers->set('If-None-Match',$cacheHeaders['etag']);
 				if(isset($cacheHeaders['last-modified']))
@@ -1454,18 +1539,21 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
 			$this->copyStream($request->body->stream,$connection);
 	}
 
-	public function getId() {
+	public function getId()
+	{
 		return 'stream';
 	}
 
-	public function getVersion() {
+	public function getVersion()
+	{
 		return phpversion();
 	}
 
-	protected function copyStream($source, $destination) {
+	protected function copyStream($source,$destination)
+	{
 		while(($buffer=fread($source,$this->bufferSize))!==false && !feof($source)) {
 			$length=strlen($buffer);
-			if(($written=fwrite($destination, $buffer))!=$length)
+			if(($written=fwrite($destination,$buffer))!=$length)
 				throw new CException(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$length)));
 		}
 	}
@@ -1479,7 +1567,8 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector {
  * @since 1.1.15
  * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
  */
-class CDechunkFilter extends php_user_filter {
+class CDechunkFilter extends php_user_filter
+{
 	const STATE_CHUNKLINE=0x00;
 	const STATE_DATACHUNK=0x01;
 	const STATE_TRAILER=0x02;
@@ -1490,17 +1579,18 @@ class CDechunkFilter extends php_user_filter {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function filter($in, $out, &$consumed, $closing) {
+	public function filter($in,$out,&$consumed,$closing)
+	{
 		while($bucket=stream_bucket_make_writeable($in)) {
 			$offset=0;
 			$outbuffer='';
-			while($offset<$bucket->datalen) {
+			while($offset < $bucket->datalen) {
 				switch($this->_state) {
 					case self::STATE_CHUNKLINE:
 						//@todo check for incomplete chunklines
-						$newOffset=strpos($bucket->data, "\r\n",$offset);
-						$chunkLine=substr($bucket->data, $offset, $newOffset-$offset);
-						@list($chunkSize,$chunkExt)=explode(';', $chunkLine, 2);
+						$newOffset=strpos($bucket->data,"\r\n",$offset);
+						$chunkLine=substr($bucket->data,$offset,$newOffset-$offset);
+						@list($chunkSize,$chunkExt)=explode(';',$chunkLine,2);
 						if(!empty($chunkExt))
 							Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CDechunkFilter');
 						$chunkSize=trim($chunkSize);
@@ -1517,21 +1607,20 @@ class CDechunkFilter extends php_user_filter {
 						$offset=$newOffset+2;
 						break;
 					case self::STATE_DATACHUNK:
-						$outbuffer.=substr($bucket->data, $offset, $this->_chunkSize);
+						$outbuffer.=substr($bucket->data,$offset,$this->_chunkSize);
 						$offset+=($this->_chunkSize+2);
-						if($offset>$bucket->datalen) {
+						if($offset > $bucket->datalen){
 							$this->_chunkSize=$offset-$bucket->datalen-2;
 							$this->_state=self::STATE_DATACHUNK;
-						}
-						else
+						} else
 							$this->_state=self::STATE_CHUNKLINE;
 						break;
 					case self::STATE_TRAILER:
-						if(isset($this->params['trailers'])) {
+						if(isset($this->params['trailers'])){
 							if($closing)
-								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset-2);
+								$this->params['trailers'].=substr($bucket->data,$offset,$bucket->datalen-$offset-2);
 							else
-								$this->params['trailers'].=substr($bucket->data, $offset, $bucket->datalen-$offset);
+								$this->params['trailers'].=substr($bucket->data,$offset,$bucket->datalen-$offset);
 						}
 						$offset=$bucket->datalen;
 						break;
