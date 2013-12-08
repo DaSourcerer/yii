@@ -5,7 +5,7 @@
  * @author Jonah Turnquist <poppitypop@gmail.com>
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
+ * @copyright 2008-2013 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
@@ -22,7 +22,7 @@
  * $this->widget('zii.widgets.CMenu', array(
  *     'items'=>array(
  *         // Important: you need to specify url as 'controller/action',
- *         // not just as 'controller' even if default acion is used.
+ *         // not just as 'controller' even if default action is used.
  *         array('label'=>'Home', 'url'=>array('site/index')),
  *         // 'Products' menu item will be selected no matter which tag parameter value is since it's not specified.
  *         array('label'=>'Products', 'url'=>array('product/index'), 'items'=>array(
@@ -151,7 +151,10 @@ class CMenu extends CWidget
 	 */
 	public function init()
 	{
-		$this->htmlOptions['id']=$this->getId();
+		if(isset($this->htmlOptions['id']))
+			$this->id=$this->htmlOptions['id'];
+		else
+			$this->htmlOptions['id']=$this->id;
 		$route=$this->getController()->getRoute();
 		$this->items=$this->normalizeItems($this->items,$route,$hasActiveChild);
 	}

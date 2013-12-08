@@ -4,7 +4,7 @@
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
+ * @copyright 2008-2013 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
@@ -337,8 +337,8 @@ interface IAuthManager
 {
 	/**
 	 * Performs access check for the specified user.
-	 * @param string $itemName the name of the operation that need access check
-	 * @param mixed $userId the user ID. This should can be either an integer and a string representing
+	 * @param string $itemName the name of the operation that we are checking access to
+	 * @param mixed $userId the user ID. This should be either an integer or a string representing
 	 * the unique identifier of a user. See {@link IWebUser::getId}.
 	 * @param array $params name-value pairs that would be passed to biz rules associated
 	 * with the tasks and roles assigned to the user.
@@ -350,7 +350,7 @@ interface IAuthManager
 	 * Creates an authorization item.
 	 * An authorization item represents an action permission (e.g. creating a post).
 	 * It has three types: operation, task and role.
-	 * Authorization items form a hierarchy. Higher level items inheirt permissions representing
+	 * Authorization items form a hierarchy. Higher level items inherit permissions representing
 	 * by lower level items.
 	 * @param string $name the item name. This must be a unique identifier.
 	 * @param integer $type the item type (0: operation, 1: task, 2: role).

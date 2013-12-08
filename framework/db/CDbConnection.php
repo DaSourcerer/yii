@@ -4,7 +4,7 @@
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
+ * @copyright 2008-2013 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
@@ -157,7 +157,7 @@ class CDbConnection extends CApplicationComponent
 	 */
 	public $queryCachingDuration=0;
 	/**
-	 * @var CCacheDependency the dependency that will be used when saving query results into cache.
+	 * @var CCacheDependency|ICacheDependency the dependency that will be used when saving query results into cache.
 	 * @see queryCachingDuration
 	 * @since 1.1.7
 	 */
@@ -185,7 +185,7 @@ class CDbConnection extends CApplicationComponent
 	public $autoConnect=true;
 	/**
 	 * @var string the charset used for database connection. The property is only used
-	 * for MySQL and PostgreSQL databases. Defaults to null, meaning using default charset
+	 * for MySQL, MariaDB and PostgreSQL databases. Defaults to null, meaning using default charset
 	 * as specified by the database.
 	 *
 	 * Note that if you're using GBK or BIG5 then it's highly recommended to
@@ -235,7 +235,7 @@ class CDbConnection extends CApplicationComponent
 	public $driverMap=array(
 		'pgsql'=>'CPgsqlSchema',    // PostgreSQL
 		'mysqli'=>'CMysqlSchema',   // MySQL
-		'mysql'=>'CMysqlSchema',    // MySQL
+		'mysql'=>'CMysqlSchema',    // MySQL,MariaDB
 		'sqlite'=>'CSqliteSchema',  // sqlite 3
 		'sqlite2'=>'CSqliteSchema', // sqlite 2
 		'mssql'=>'CMssqlSchema',    // Mssql driver on windows hosts
@@ -343,7 +343,8 @@ class CDbConnection extends CApplicationComponent
 	 * without actually executing the SQL statement.
 	 * @param integer $duration the number of seconds that query results may remain valid in cache.
 	 * If this is 0, the caching will be disabled.
-	 * @param CCacheDependency $dependency the dependency that will be used when saving the query results into cache.
+	 * @param CCacheDependency|ICacheDependency $dependency the dependency that will be used when saving
+	 * the query results into cache.
 	 * @param integer $queryCount number of SQL queries that need to be cached after calling this method. Defaults to 1,
 	 * meaning that the next SQL query will be cached.
 	 * @return CDbConnection the connection instance itself.
@@ -405,7 +406,8 @@ class CDbConnection extends CApplicationComponent
 	/**
 	 * Creates the PDO instance.
 	 * When some functionalities are missing in the pdo driver, we may use
-	 * an adapter class to provides them.
+	 * an adapter class to provide them.
+	 * @throws CDbException when failed to open DB connection
 	 * @return PDO the pdo instance
 	 */
 	protected function createPdoInstance()
@@ -419,14 +421,23 @@ class CDbConnection extends CApplicationComponent
 			elseif($driver==='sqlsrv')
 				$pdoClass='CMssqlSqlsrvPdoAdapter';
 		}
-		return new $pdoClass($this->connectionString,$this->username,
-									$this->password,$this->_attributes);
+
+		if(!class_exists($pdoClass))
+			throw new CDbException(Yii::t('yii','CDbConnection is unable to find PDO class "{className}". Make sure PDO is installed correctly.',
+				array('{className}'=>$pdoClass)));
+
+		@$instance=new $pdoClass($this->connectionString,$this->username,$this->password,$this->_attributes);
+
+		if(!$instance)
+			throw new CDbException(Yii::t('yii','CDbConnection failed to open the DB connection.'));
+
+		return $instance;
 	}
 
 	/**
 	 * Initializes the open db connection.
 	 * This method is invoked right after the db connection is established.
-	 * The default implementation is to set the charset for MySQL and PostgreSQL database connections.
+	 * The default implementation is to set the charset for MySQL, MariaDB and PostgreSQL database connections.
 	 * @param PDO $pdo the PDO instance
 	 */
 	protected function initConnection($pdo)
@@ -498,6 +509,7 @@ class CDbConnection extends CApplicationComponent
 
 	/**
 	 * Returns the database schema for the current connection
+	 * @throws CDbException if CDbConnection does not support reading schema for specified database driver
 	 * @return CDbSchema the database schema for the current connection
 	 */
 	public function getSchema()

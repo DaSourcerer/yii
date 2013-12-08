@@ -4,7 +4,7 @@
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @link http://www.yiiframework.com/
- * @copyright Copyright &copy; 2008-2011 Yii Software LLC
+ * @copyright 2008-2013 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
@@ -25,7 +25,7 @@ Yii::import('zii.widgets.grid.CCheckBoxColumn');
  * when the user browser disables JavaScript, the sorting and pagination automatically degenerate
  * to normal page requests and are still functioning as expected.
  *
- * CGridView should be used together with a {@link IDataProvider data provider}, preferrably a
+ * CGridView should be used together with a {@link IDataProvider data provider}, preferably a
  * {@link CActiveDataProvider}.
  *
  * The minimal code needed to use CGridView is as follows:
@@ -111,18 +111,34 @@ class CGridView extends CBaseListView
 	public $rowCssClass=array('odd','even');
 	/**
 	 * @var string a PHP expression that is evaluated for every table body row and whose result
-	 * is used as the CSS class name for the row. In this expression, the variable <code>$row</code>
-	 * stands for the row number (zero-based), <code>$data</code> is the data model associated with
-	 * the row, and <code>$this</code> is the grid object.
+	 * is used as the CSS class name for the row. In this expression, you can use the following variables:
+	 * <ul>
+	 *   <li><code>$row</code> the row number (zero-based)</li>
+	 *   <li><code>$data</code> the data model for the row</li>
+	 *   <li><code>$this</code> the grid view object</li>
+	 * </ul>
+	 * The PHP expression will be evaluated using {@link evaluateExpression}.
+	 *
+	 * A PHP expression can be any PHP code that has a value. To learn more about what an expression is,
+	 * please refer to the {@link http://www.php.net/manual/en/language.expressions.php php manual}.
 	 * @see rowCssClass
-	 * @deprecated in 1.1.13
+	 * @deprecated in 1.1.13 in favor of {@link rowHtmlOptionsExpression}
 	 */
 	public $rowCssClassExpression;
 	/**
 	 * @var string a PHP expression that is evaluated for every table body row and whose result
-	 * is used as additional HTML attributes for the row. In this expression, the variable <code>$row</code>
-	 * stands for the row number (zero-based), <code>$data</code> is the data model associated with
-	 * the row, and <code>$this</code> is the grid object.
+	 * is used as additional HTML attributes for the row. The expression should return an
+	 * array whose key value pairs correspond to html attribute and value.
+	 * In this expression, you can use the following variables:
+	 * <ul>
+	 *   <li><code>$row</code> the row number (zero-based)</li>
+	 *   <li><code>$data</code> the data model for the row</li>
+	 *   <li><code>$this</code> the grid view object</li>
+	 * </ul>
+	 * The PHP expression will be evaluated using {@link evaluateExpression}.
+	 *
+	 * A PHP expression can be any PHP code that has a value. To learn more about what an expression is,
+	 * please refer to the {@link http://www.php.net/manual/en/language.expressions.php php manual}.
 	 * @since 1.1.13
 	 */
 	public $rowHtmlOptionsExpression;
@@ -166,7 +182,7 @@ class CGridView extends CBaseListView
 	 * Possible values (besides null) are "timeout", "error", "notmodified" and "parsererror"</li>
 	 * <li><code>errorThrown</code> is an optional exception object, if one occurred.</li>
 	 * <li><code>errorMessage</code> is the CGridView default error message derived from xhr and errorThrown.
-	 * Usefull if you just want to display this error differently. CGridView by default displays this error with an javascript.alert()</li>
+	 * Useful if you just want to display this error differently. CGridView by default displays this error with an javascript.alert()</li>
 	 * </ul>
 	 * Note: This handler is not called for JSONP requests, because they do not use an XMLHttpRequest.
 	 *
@@ -190,6 +206,13 @@ class CGridView extends CBaseListView
 	 */
 	public $ajaxUrl;
 	/**
+	 * @var string the type ('GET' or 'POST') of the AJAX requests. If not set, 'GET' will be used.
+	 * You can set this to 'POST' if you are filtering by many fields at once and have a problem with GET query string length.
+	 * Note that in POST mode direct links and {@link enableHistory} feature may not work correctly!
+	 * @since 1.1.14
+	 */
+	public $ajaxType;
+	/**
 	 * @var string a javascript function that will be invoked before an AJAX update occurs.
 	 * The function signature is <code>function(id,options)</code> where 'id' refers to the ID of the grid view,
 	 * 'options' the AJAX request options  (see jQuery.ajax api manual).
@@ -204,8 +227,8 @@ class CGridView extends CBaseListView
 	/**
 	 * @var string a javascript function that will be invoked after the row selection is changed.
 	 * The function signature is <code>function(id)</code> where 'id' refers to the ID of the grid view.
-	 * In this function, you may use <code>$.fn.yiiGridView.getSelection(id)</code> to get the key values
-	 * of the currently selected rows.
+	 * In this function, you may use <code>$(gridID).yiiGridView('getSelection')</code> to get the key values
+	 * of the currently selected rows (gridID is the DOM selector of the grid).
 	 * @see selectableRows
 	 */
 	public $selectionChanged;
@@ -213,7 +236,8 @@ class CGridView extends CBaseListView
 	 * @var integer the number of table body rows that can be selected. If 0, it means rows cannot be selected.
 	 * If 1, only one row can be selected. If 2 or any other number, it means multiple rows can be selected.
 	 * A selected row will have a CSS class named 'selected'. You may also call the JavaScript function
-	 * <code>$.fn.yiiGridView.getSelection(containerID)</code> to retrieve the key values of the selected rows.
+	 * <code>$(gridID).yiiGridView('getSelection')</code> to retrieve the key values of the currently selected
+	 * rows (gridID is the DOM selector of the grid).
 	 */
 	public $selectableRows=1;
 	/**
@@ -244,6 +268,22 @@ class CGridView extends CBaseListView
 	 * @since 1.1.1
 	 */
 	public $loadingCssClass='grid-view-loading';
+	/**
+	 * @var string the jQuery selector of filter input fields.
+	 * The token '{filter}' is recognized and it will be replaced with the grid filters selector.
+	 * Defaults to '{filter}'.
+	 *
+	 * Note: if this value is empty an exception will be thrown.
+	 *
+	 * Example (adding a custom selector to the default one):
+	 * <pre>
+	 *  ...
+	 *  'filterSelector'=>'{filter}, #myfilter',
+	 *  ...
+	 * </pre>
+	 * @since 1.1.13
+	 */
+	public $filterSelector='{filter}';
 	/**
 	 * @var string the CSS class name for the table row element containing all filter input fields. Defaults to 'filters'.
 	 * @see filter
@@ -288,6 +328,8 @@ class CGridView extends CBaseListView
 	 * @since 1.1.11
 	 */
 	public $enableHistory=false;
+
+
 	/**
 	 * Initializes the grid view.
 	 * This method will initialize required property values and instantiate {@link columns} objects.
@@ -298,6 +340,8 @@ class CGridView extends CBaseListView
 
 		if(empty($this->updateSelector))
 			throw new CException(Yii::t('zii','The property updateSelector should be defined.'));
+		if(empty($this->filterSelector))
+			throw new CException(Yii::t('zii','The property filterSelector should be defined.'));
 
 		if(!isset($this->htmlOptions['class']))
 			$this->htmlOptions['class']='grid-view';
@@ -395,10 +439,19 @@ class CGridView extends CBaseListView
 			'tableClass'=>$this->itemsCssClass,
 			'selectableRows'=>$this->selectableRows,
 			'enableHistory'=>$this->enableHistory,
-			'updateSelector'=>$this->updateSelector
+			'updateSelector'=>$this->updateSelector,
+			'filterSelector'=>$this->filterSelector
 		);
 		if($this->ajaxUrl!==null)
 			$options['url']=CHtml::normalizeUrl($this->ajaxUrl);
+		if($this->ajaxType!==null) {
+			$options['ajaxType']=strtoupper($this->ajaxType);
+			$request=Yii::app()->getRequest();
+			if ($options['ajaxType']=='POST' && $request->enableCsrfValidation) {
+				$options['csrfTokenName']=$request->csrfTokenName;
+				$options['csrfToken']=$request->getCsrfToken();
+			}
+		}
 		if($this->enablePagination)
 			$options['pageVar']=$this->dataProvider->getPagination()->pageVar;
 		foreach(array('beforeAjaxUpdate', 'afterAjaxUpdate', 'ajaxUpdateError', 'selectionChanged') as $event)
