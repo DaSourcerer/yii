@@ -1328,7 +1328,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 	 */
 	public $ssl=array();
 
-	public $persistent=true;
+	public $persistent=false;
 
 	public $bufferSize=16384;
 
