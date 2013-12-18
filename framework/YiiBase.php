@@ -810,6 +810,7 @@ class YiiBase
 		'CTheme' => '/web/CTheme.php',
 		'CThemeManager' => '/web/CThemeManager.php',
 		'CUploadedFile' => '/web/CUploadedFile.php',
+		'CUrl' => '/web/CUrl.php',
 		'CUrlManager' => '/web/CUrlManager.php',
 		'CWebApplication' => '/web/CWebApplication.php',
 		'CWebModule' => '/web/CWebModule.php',

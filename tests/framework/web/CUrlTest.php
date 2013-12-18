@@ -1,7 +1,5 @@
 <?php
 
-Yii::import('system.web.CHttpClient',true);
-
 class CUrlTest extends CTestCase
 {
 	/**
