@@ -14,6 +14,7 @@
  * CHttpClient itself is mostly for higher level management. All the magic is happening in the connectors.
  *
  * @property $connector CBaseHttpClientConnector this client's connector
+ * @property $cache CCache
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
@@ -63,9 +64,20 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public $userAgentString=self::USER_AGENT_STRING;
 
+	/**
+	 * The id of the caching component
+	 * @var string
+	 */
+	public $cacheID;
+
 	private $_connector=array(
 		'class'=>'CHttpClientStreamConnector',
 	);
+
+	/**
+	 * @var CCache
+	 */
+	private $_cache;
 
 	/**
 	 * @see CApplicationComponent::init()
@@ -237,6 +249,21 @@ class CHttpClient extends CApplicationComponent
 		$result->method=$method;
 		$result->client=$this;
 		return $result;
+	}
+
+	/**
+	 * @return CCache
+	 * @see $cacheID
+	 */
+	public function getCache()
+	{
+		if($this->_cache===null){
+			$this->_cache=Yii::app()->getComponent($this->cacheID);
+			//For the console
+			if($this->_cache===null)
+				$this->_cache=new CDummyCache;
+		}
+		return $this->_cache;
 	}
 }
 
@@ -797,8 +824,6 @@ class CHeaderCollection extends CMap
  * Please take note that the capabilities of different connectors might vary: They are free to advertise different
  * capabilities to servers and modify requests to their liking. They are thus not easily interchangeable.
  *
- * @property $cache CCache
- *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
  * @since 1.1.15
@@ -816,17 +841,6 @@ abstract class CBaseHttpClientConnector extends CComponent
 	 * @var integer
 	 */
 	public $maxRedirects=5;
-
-	/**
-	 * The id of the caching component
-	 * @var string
-	 */
-	public $cacheID='cache';
-
-	/**
-	 * @var CCache
-	 */
-	private $_cache;
 
 	/**
 	 * Perform the actual HTTP request and return the response
@@ -850,21 +864,6 @@ abstract class CBaseHttpClientConnector extends CComponent
 	 * @return string
 	 */
 	abstract public function getVersion();
-
-	/**
-	 * @return CCache
-	 * @see $cacheID
-	 */
-	public function getCache()
-	{
-		if($this->_cache===null){
-			$this->_cache=Yii::app()->getComponent($this->cacheID);
-			//For the console
-			if($this->_cache===null)
-				$this->_cache=new CDummyCache;
-		}
-		return $this->_cache;
-	}
 }
 
 /**
@@ -983,7 +982,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 			if(isset($response->headers['Last-Modified']))
 				$cacheHeaders['last-modified']=strtotime($response->headers['Last-Modified']);
 
-			$this->cache->set('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString(),$cacheHeaders);
+			$request->client->cache->set('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString(),$cacheHeaders);
 		}
 
 		return $response;
@@ -1074,7 +1073,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 				$request->headers->set('Date',gmdate('D, d M Y H:i:s').' GMT');
 			if(isset($request->url->user) && isset($request->url->pass))
 				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
-			if($request->isCacheable() && ($cacheHeaders=$this->cache->get('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString()))!==false){
+			if($request->isCacheable() && ($cacheHeaders=$request->client->cache->get('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString()))!==false){
 				if(isset($cacheHeaders['etag']))
 					$request->headers->set('If-None-Match',$cacheHeaders['etag']);
 				if(isset($cacheHeaders['last-modified']))
