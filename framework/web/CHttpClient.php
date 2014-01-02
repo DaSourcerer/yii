@@ -1065,7 +1065,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		fwrite($connection,$request->getRequestLine());
 		if($request->httpVersion >= 1){
 			$host=$request->url->host;
-			if($request->url->port)
+			if($request->url->port&&$request->url->port!=$request->url->getDefaultPort())
 				$host.=':'.$request->url->port;
 			$request->headers->set('Host',$host);
 			$request->headers->set('Connection',($this->persistent)?'keep-alive':'close');
