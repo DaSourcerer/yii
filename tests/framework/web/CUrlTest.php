@@ -4,6 +4,10 @@ class CUrlTest extends CTestCase
 {
 	/**
 	 * @dataProvider urlProvider
+	 * @covers CUrl::parseQueryString
+	 * @covers CUrl::parseQueryStringHelper
+	 * @covers CUrl::buildQueryString
+	 * @covers CUrl::buildQueryStringHelper
 	 */
 	public function testConstructor($url)
 	{
@@ -60,38 +64,42 @@ class CUrlTest extends CTestCase
 		$url=new CUrl('http://www.example.com');
 		$this->assertEmpty($url->port);
 		$url=new CUrl('http://www.example.com:80');
-		$this->assertEmpty($url->port);
+		$this->assertEquals(80,$url->port);
 		$url=new CUrl('http://www.example.com:90');
-		$this->assertNotEmpty($url->port);
 		$this->assertEquals(90,$url->port);
 	}
 
-	public function testSetPath()
+	/**
+	 * @covers CUrl::normalizePath()
+	 */
+	public function testGetNormalizedPath()
 	{
 		$url=new CUrl('http://www.example.com');
-		$this->assertEmpty($url->path);
+		$this->assertEmpty($url->getNormalizedPath());
 		$url->path='/';
-		$this->assertEquals('/',$url->path);
+		$this->assertEquals('/',$url->getNormalizedPath());
 		$url->path='.';
-		$this->assertEmpty($url->path);
+		$this->assertEmpty($url->getNormalizedPath());
 		$url->path='..';
-		$this->assertEmpty($url->path);
+		$this->assertEmpty($url->getNormalizedPath());
 		$url->path='/./.././a/b/../';
-		$this->assertEquals('a/',$url->path);
+		$this->assertEquals('a/',$url->getNormalizedPath());
 		$url->path='/a/../b/c/d/../e/../../';
-		$this->assertEquals('/b/',$url->path);
+		$this->assertEquals('/b/',$url->getNormalizedPath());
 
 		// The following examples are copied verbatim from RFC 3986, Section 5.2.4
 		$url->path='/a/b/c/./../../g';
-		$this->assertEquals('/a/g',$url->path);
+		$this->assertEquals('/a/g',$url->getNormalizedPath());
 		$url->path='mid/content=5/../6';
-		$this->assertEquals('mid/6',$url->path);
+		$this->assertEquals('mid/6',$url->getNormalizedPath());
 	}
 
 	public function testToString()
 	{
 		$url=new CUrl('//host');
 		$this->assertEquals('//host',$url->__toString());
+		$url=new CUrl('http://example.com');
+		$this->assertEquals('http://example.com',$url->__toString());
 	}
 
 	public function urlProvider()

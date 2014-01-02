@@ -28,6 +28,7 @@
  * @property integer $port
  * @property string $path
  * @property string $query
+ * @property boolean isAbsolute
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
@@ -49,6 +50,16 @@ class CUrl extends CComponent
 	 * @var array
 	 */
 	public $params=array();
+
+	/**
+	 * @var integer
+	 */
+	public $port;
+
+	/**
+	 * @var string
+	 */
+	public $path;
 
 	/**
 	 * @var string
@@ -74,16 +85,6 @@ class CUrl extends CComponent
 	 * @var string
 	 */
 	private $_pass;
-
-	/**
-	 * @var integer
-	 */
-	private $_port;
-
-	/**
-	 * @var string
-	 */
-	private $_path;
 
 	private static $_componentMap=array(
 		self::COMPONENT_SCHEME=>'scheme',
@@ -139,7 +140,7 @@ class CUrl extends CComponent
 	 * Check if an URL is absolute or not
 	 * @return bool
 	 */
-	public function isAbsolute()
+	public function getIsAbsolute()
 	{
 		return !empty($this->_scheme);
 	}
@@ -195,53 +196,14 @@ class CUrl extends CComponent
 		return $this->_pass;
 	}
 
-	/**
-	 * @param integer $port
-	 */
-	public function setPort($port)
+	public function getDefaultPort()
 	{
-		if($port!=getservbyname($this->scheme,'tcp'))
-			$this->_port=$port;
+		return getservbyname($this->_scheme,'tcp');
 	}
 
-	/**
-	 * @return integer
-	 */
-	public function getPort()
+	public function getNormalizedPath()
 	{
-		return $this->_port;
-	}
-
-	/**
-	 * @param string $path
-	 */
-	public function setPath($path)
-	{
-		//@todo: RFC 3986, sec 6.2.2ff
-		// thx to hashguy on ##php@freenode for coming up with this
-		$normalizedPath=array();
-		foreach(explode('/',$path) as $segment) {
-			if($segment=='.')
-				continue;
-			if($segment=='..'){
-				array_pop($normalizedPath);
-				continue;
-			}
-			$normalizedPath[]=$this->urlencode($segment);
-		}
-
-		if(!empty($normalizedPath))
-			$this->_path=implode('/',$normalizedPath);
-		else
-			$this->_path=null;
-	}
-
-	/**
-	 * @return string
-	 */
-	public function getPath()
-	{
-		return $this->_path;
+		return self::normalizePath($this->path);
 	}
 
 	/**
@@ -304,16 +266,8 @@ class CUrl extends CComponent
 
 		if(!$this->isAbsolute())
 			throw new CException(Yii::t('yii','Cannot resolve relative URL'));
-
-		if($url->isAbsolute())
-			return new CUrl($url);
-
-		$result=array_merge($this->toArray(),$url->strip(self::COMPONENT_PATH)->toArray());
-
-		if($url->path{0}==='/')
-			$result['path']=$url->path;
-
-		return new CUrl($result);
+		else
+			return $url;
 	}
 
 	/**
@@ -326,8 +280,8 @@ class CUrl extends CComponent
 			'user'=>$this->_user,
 			'pass'=>$this->_pass,
 			'host'=>$this->_host,
-			'port'=>$this->_port,
-			'path'=>$this->_path,
+			'port'=>$this->port,
+			'path'=>$this->path,
 			'query'=>$this->query,
 			'fragment'=>$this->fragment,
 		);
@@ -339,35 +293,32 @@ class CUrl extends CComponent
 	public function __toString()
 	{
 		$result='';
-		$components=$this->toArray();
-		if(!empty($components['scheme']))
-			$result.=$components['scheme'].':';
-		if(!empty($components['user']) || !empty($components['host']))
+		if(!empty($this->scheme))
+			$result.=$this->scheme.':';
+		if(!empty($this->user) || !empty($this->host))
 			$result.='//';
-		if(!empty($components['user'])){
-			$result.=$components['user'];
-			if(!empty($components['pass']))
-				$result.=':'.$components['pass'];
-			$result.='@';
+		if(!empty($this->user)){
+			$result.=$this->user.'@';
 		}
-		if(!empty($components['host']))
-			$result.=$components['host'];
-		if(!empty($components['port']))
-			$result.=':'.$components['port'];
-		if(!empty($components['path'])){
-			if($components['path']{0}!=='/')
+		if(!empty($this->host))
+			$result.=$this->host;
+		if(!empty($this->port)&&$this->port!=$this->getDefaultPort())
+			$result.=':'.$this->port;
+		$path=$this->getNormalizedPath();
+		if(!empty($path)){
+			if($path{0}!=='/')
 				$result.='/';
-			$result.=$components['path'];
-		} elseif(!empty($components['query']) || !empty($components['fragment']))
+			$result.=$path;
+		} elseif(!empty($this->query) || !empty($this->fragment))
 			$result.='/';
-		if(!empty($components['query']))
-			$result.='?'.$components['query'];
-		if(!empty($components['fragment']))
-			$result.='#'.$components['fragment'];
+		if(!empty($this->query))
+			$result.='?'.$this->query;
+		if(!empty($this->fragment))
+			$result.='#'.$this->fragment;
 		return $result;
 	}
 
-	private function urlencode($string)
+	private static function urlencode($string)
 	{
 		$string=preg_replace_callback('/%[a-f\d]{2}/','strtoupper',$string);
 		return str_replace('%7E','~',rawurlencode($string));
@@ -428,9 +379,9 @@ class CUrl extends CComponent
 				$result[]=$this->buildQueryStringHelper($key,$value);
 			else
 				if(empty($value))
-					$result[]=$this->urlencode($key);
+					$result[]=self::urlencode($key);
 				else
-					$result[]=$this->urlencode($key).'='.$this->urlencode($value);
+					$result[]=self::urlencode($key).'='.self::urlencode($value);
 		}
 		return implode('&',$result);
 	}
@@ -450,5 +401,26 @@ class CUrl extends CComponent
 				$result[]=urlencode($prefix.'['.$key.']').'='.urlencode($value);
 		}
 		return implode('&',$result);
+	}
+
+	public static function normalizePath($path)
+	{
+		//@todo: RFC 3986, sec 6.2.2ff
+		// thx to hashguy on ##php@freenode for coming up with this
+		$normalizedPath=array();
+		foreach(explode('/',$path) as $segment) {
+			if($segment=='.')
+				continue;
+			if($segment=='..'){
+				array_pop($normalizedPath);
+				continue;
+			}
+			$normalizedPath[]=self::urlencode($segment);
+		}
+
+		if(!empty($normalizedPath))
+			return implode('/',$normalizedPath);
+		else
+			return null;
 	}
 }
