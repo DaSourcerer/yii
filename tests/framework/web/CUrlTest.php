@@ -45,14 +45,13 @@ class CUrlTest extends CTestCase
 		$this->assertEquals('http',$url->scheme);
 	}
 
-	public function testSetHost()
+	/**
+	 * @dataProvider hostProvider
+	 */
+	public function testSetHost($host)
 	{
 		$url=new CUrl;
-		$url->host='example.com';
-		$this->assertEquals('example.com',$url->host);
-		$url->host='Example.com';
-		$this->assertEquals('example.com',$url->host);
-		$url->host='EXAMPLE.COM';
+		$url->host=$host;
 		$this->assertEquals('example.com',$url->host);
 	}
 
@@ -124,6 +123,15 @@ class CUrlTest extends CTestCase
 			array(
 				new CUrl('http://www.example.org/foo?bar#baz'),
 			),
+		);
+	}
+
+	public function hostProvider()
+	{
+		return array(
+			array('example.com'),
+			array('Example.com'),
+			array('EXAMPLE.COM'),
 		);
 	}
 }
