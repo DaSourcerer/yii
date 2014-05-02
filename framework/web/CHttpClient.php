@@ -655,6 +655,7 @@ class CHttpClientRequest extends CHttpClientMessage
 		$request=new CHttpClientRequest($response->headers['Location'],$response->request->method);
 		$request->headers=$response->request->headers;
 		$request->body=$response->request->body;
+		$request->client=$response->request->client;
 		return $request;
 	}
 
@@ -664,7 +665,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	public function getRequestLine()
 	{
-		return sprintf('%s %s HTTP/%.1f',$this->method,empty($this->url->path)?'/':$this->url->path,$this->httpVersion).CHttpClient::CRLF;
+		return sprintf('%s %s HTTP/%.1f',$this->method,'/'.ltrim($this->url->path,'/'),$this->httpVersion).CHttpClient::CRLF;
 	}
 
 	/**
@@ -882,9 +883,11 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 	 */
 	public $ssl=array();
 
-	public $persistent=false;
+	public $persistent=true;
 
-	public $bufferSize=16384;
+	public $bufferSize=32767;
+
+	public $maxLineLength=8192;
 
 	private $_streamContext;
 
@@ -906,57 +909,55 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 
 		if(!empty($supportedEncodings))
 			$this->_headers['Accept-Encoding']=implode(', ',$supportedEncodings);
-
-		stream_filter_register('yiidechunk','CDechunkFilter');
 	}
 
 	public function getStreamContext()
 	{
 		if($this->_streamContext===null){
 			$this->_streamContext=stream_context_create();
-			foreach($this->ssl as $option=>$value) {
+			$sslOptions=array_merge(array(
+				'cafile'=>Yii::getPathOfAlias('system.web').DIRECTORY_SEPARATOR.'cacert.pem',
+				'verify_peer'=>true,
+				'verify_depth'=>5,
+			),$this->ssl);
+			foreach($sslOptions as $option=>$value) {
 				if(!stream_context_set_option($this->_streamContext,'ssl',$option,$value))
 					throw new CException(Yii::t('yii','Failed to set SSL option {option}',array('{option}'=>$option)));
 			}
-			if(!isset($this->ssl['cafile']))
-				stream_context_set_option($this->_streamContext,'ssl','cafile',Yii::getPathOfAlias('system.web').'cacert.pem');
 		}
 		return $this->_streamContext;
 	}
 
-	public function getConnection(CUrl $url)
+	public function getConnection(CHttpClientRequest $request)
 	{
-		$url=$url->filter(CUrl::COMPONENT_SCHEME|CUrl::COMPONENT_HOST|Curl::COMPONENT_PORT);
+		$remoteSocket=($request->url->scheme=='https'?'ssl':'tcp').'://'.$request->url->host.':';
 
-		if($url->scheme=='https'){
-			$url->scheme='ssl';
-			if(!isset($url->port))
-				$url->port=443;
-		} else {
-			$url->scheme='tcp';
-			if(!isset($url->port))
-				$url->port=80;
-		}
+		if(isset($request->url->port))
+			$remoteSocket.=$request->url->port;
+		else
+			$remoteSocket.=($request->url->scheme=='https'?443:80);
 
 		$flags=STREAM_CLIENT_CONNECT;
 		if($this->persistent)
 			$flags|=STREAM_CLIENT_PERSISTENT;
 
-		$connection=@stream_socket_client($url,$errno,$errstr,$this->timeout,$flags,$this->streamContext);
-		if($connection===false)
-			throw new CException(Yii::t('yii','Failed to connect to {url} ({errno}): {errstr}',array('{url}'=>$url,'{errno}'=>$errno,'{errstr}'=>$errstr)));
+		if(($connection=stream_socket_client($remoteSocket,$errno,$errstr,$this->timeout,$flags,$this->streamContext))===false)
+			throw new CException(Yii::t('yii','Failed to connect to {url} ({errno}): {errstr}',array('{url}'=>$remoteSocket,'{errno}'=>$errno,'{errstr}'=>$errstr)));
+
+		stream_set_write_buffer($connection,$this->bufferSize);
+		stream_set_read_buffer($connection,$this->bufferSize);
 		return $connection;
 	}
 
 
 	public function send(CHttpClientRequest $request)
 	{
-		return $this->sendInternal($request,$this->maxRedirects);
+		return $this->sendInternal($request,0);
 	}
 
-	protected function sendInternal(CHttpClientRequest $request,$redirectsLeft)
+	protected function sendInternal(CHttpClientRequest $request,$redirects)
 	{
-		$connection=$this->getConnection($request->url);
+		$connection=$this->getConnection($request);
 
 		$request->headers->mergeWith($this->_headers);
 		$this->sendRequest($connection,$request);
@@ -964,29 +965,23 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		$response=$this->readResponse($connection,$request);
 
 		if($response->isRedirect()){
-			--$redirectsLeft;
-			if($redirectsLeft==0)
+			if($redirects++>$this->maxRedirects)
 				throw new CException(Yii::t('yii','Maximum number of HTTP redirects reached'));
-			$response=$this->sendInternal(CHttpClientRequest::fromRedirect($response),$redirectsLeft);
+			$response=$this->sendInternal(CHttpClientRequest::fromRedirect($response),$redirects);
 		}
 
 		if($response->isCacheable()){
 			$cacheHeaders=array();
-			if(isset($response->headers['ETag'])){
-				$etag=$response->headers['ETag'];
-				//Handle weak etags
-				if(stripos('W/',$etag)===0)
-					$etag=substr($etag,2);
-				$cacheHeaders['etag']=$etag;
-			}
+			if(isset($response->headers['ETag']))
+				$cacheHeaders['etag']=trim($response->headers['ETag']);
 			if(isset($response->headers['Last-Modified']))
 				$cacheHeaders['last-modified']=strtotime($response->headers['Last-Modified']);
-
 			$request->client->cache->set('system.web.CHttpClient#'.$request->url->strip(CUrl::COMPONENT_FRAGMENT)->__toString(),$cacheHeaders);
 		}
 
 		return $response;
 	}
+
 
 	/**
 	 * @param $connection
@@ -998,16 +993,17 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 	{
 		$response=new CHttpClientResponse;
 		$response->request=$request;
-		if(!($statusLine=@fgets($connection)))
-			throw new CException(Yii::t('yii','Failed to read from connection'));
+		if(($statusLine=stream_get_line($connection,$this->maxLineLength,"\n"))===false)
+			throw new CException(Yii::t('yii','Failed to read status line from connection'));
 
 		if(strpos($statusLine,'HTTP/')!==0){
-			Yii::log(Yii::t('yii','Received non-http/1.x response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
+			Yii::log(Yii::t('yii','Received non-http response line - assuming HTTP/0.9'),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			$response->httpVersion=0.9;
 			$response->status=200;
 
 			fwrite($response->body->stream,$statusLine);
 			$this->copyStream($connection,$response->body->stream);
+			fclose($connection);
 
 			return $response;
 		}
@@ -1019,19 +1015,37 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		$response->message=trim($response->message);
 
 		$headers='';
-		while(($line=fgets($connection))!==false && !feof($connection) && trim($line)!='')
-			$headers.=$line;
+		while(($line=stream_get_line($connection,$this->maxLineLength,"\n"))!==false && !feof($connection) && trim($line)!='')
+			$headers.=$line."\n";
 
 		$this->parseHeaders($headers,$response->headers);
 
+		$chunked=isset($response->headers['Transfer-Encoding']) && stripos($response->headers['Transfer-Encoding'],'chunked')!==false;
+		$closeConnection=!$this->persistent || (isset($response->headers['Connection']) && stripos($response->headers['Connection'],'close')!==false);
+
+		if($chunked) {
+			while(($chunkSize=$this->readChunkSize($connection))>0) {
+				$this->copyStream($connection,$response->body->stream,$chunkSize);
+				fseek($connection,2,SEEK_CUR);
+			}
+			$trailers='';
+			while(trim($trailer=stream_get_line($connection,$this->maxLineLength,"\n"))!='')
+				$trailers.=$trailer."\n";
+			if($trailers!='')
+				$this->parseHeaders($trailers,$response->headers);
+
+		} else if(isset($response->headers['Content-Length']))
+			$this->copyStream($connection,$response->body->stream,$response->headers['Content-Length']);
+		else if($closeConnection)
+			$this->copyStream($connection,$response->body->stream);
+		else
+			throw new CException(Yii::t('yii','Unable to determine message size - cannot proceed on persistent connection.'));
+
+
+		if($closeConnection)
+			fclose($connection);
+
 		$filters=array();
-		$trailers='';
-
-		if(isset($response->headers['Transfer-Encoding']) && strtolower($response->headers['Transfer-Encoding'])=='chunked')
-			$filters[]=stream_filter_append($response->body->stream,'yiidechunk',STREAM_FILTER_WRITE,array('trailers'=>&$trailers));
-
-		$this->copyStream($connection,$response->body->stream);
-
 		if(isset($response->headers['Content-Encoding'])){
 			switch(strtolower($response->headers['Content-Encoding'])) {
 				case 'identity':
@@ -1051,18 +1065,16 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 				default:
 					Yii::log(Yii::t('Unknown content encoding {encoding} - ignoring',array('{encoding}'=>$response->headers['Content-Encoding'])),CLogger::LEVEL_WARNING,'system.web.CHttpClientStreamConnector');
 			}
-		} else
+		}
+		else
 			rewind($response->body->stream);
-
-		if(!empty($trailers))
-			$this->parseHeaders($trailers,$response->headers);
 
 		return $response;
 	}
 
 	protected function sendRequest($connection,CHttpClientRequest $request)
 	{
-		fwrite($connection,$request->getRequestLine());
+		$requestString=$request->getRequestLine();
 		if($request->httpVersion >= 1){
 			$host=$request->url->host;
 			if($request->url->port&&$request->url->port!=$request->url->getDefaultPort())
@@ -1079,16 +1091,18 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 				if(isset($cacheHeaders['last-modified']))
 					$request->headers->set('If-Modified-Since',gmdate('D, d M Y H:i:s',$cacheHeaders['last-modified']).' GMT');
 			}
-			fwrite($connection,$request->headers);
-		} else {
-			fwrite($connection,CHttpClient::CRLF);
+			$requestString.=$request->headers;
 		}
+
+		stream_set_write_buffer($connection,0);
+		$this->writeToStream($connection,$requestString);
+		stream_set_write_buffer($connection,$this->bufferSize);
 
 		if(!$request->body->isEmpty())
 			$this->copyStream($request->body->stream,$connection);
 	}
 
-	protected function parseHeaders($headers,CHeaderCollection &$collection)
+	protected function parseHeaders($headers,CHeaderCollection $collection)
 	{
 		//Per RFC2616, sec 19.3, we are required to treat \n like \r\n
 		$headers=str_replace("\r\n","\n",$headers);
@@ -1112,87 +1126,47 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		return phpversion();
 	}
 
-	protected function copyStream($source,$destination)
+	protected function copyStream($source,$destination,$length=null)
 	{
-		while(($buffer=fread($source,$this->bufferSize))!==false && !feof($source)) {
-			$length=strlen($buffer);
-			if(($written=fwrite($destination,$buffer))!=$length)
-				throw new CException(Yii::t('yii','Wrote {written} instead of {length} bytes to stream - possible network error',array('{written}'=>$written,'{length}'=>$length)));
+		$lengthLeft=$length;
+		while(!feof($source) && $lengthLeft>0 && ($buffer=fread($source,($length===null?$this->bufferSize:min($lengthLeft,$this->bufferSize))))!==false)
+		{
+			$lengthLeft-=strlen($buffer);
+			$this->writeToStream($destination,$buffer);
+		}
+		if($lengthLeft>0)
+			throw new CException(Yii::t('yii','Premature end of stream, failed to read {length} bytes',array('{length}'=>$lengthLeft)));
+	}
+
+	protected function writeToStream($stream,$string)
+	{
+		$bytesLeft=strlen($string);
+		$pos=0;
+		while($bytesLeft>0)
+		{
+			$length=min($this->bufferSize,$bytesLeft);
+			if(($written=fwrite($stream,substr($string,$pos,$length)))===false)
+				throw new CException(Yii::t('yii','Failed to write {length} bytes to stream - possible network error',array('{length}'=>$length)));
+			$pos+=$written;
+			$bytesLeft-=$written;
 		}
 	}
-}
-
-/**
- * Class CDechunkFilter
- *
- * @author Da:Sourcerer <webmaster@dasourcerer.net>
- * @package system.web
- * @since 1.1.15
- * @link http://dancingmammoth.com/2009/08/29/php-stream-filters-unchunking-http-streams/
- */
-class CDechunkFilter extends php_user_filter
-{
-	const STATE_CHUNKLINE=0x00;
-	const STATE_DATACHUNK=0x01;
-	const STATE_TRAILER=0x02;
-
-	private $_state=self::STATE_CHUNKLINE;
-	private $_chunkSize;
 
 	/**
-	 * {@inheritdoc}
+	 * @param $connection
+	 * @return integer
+	 * @throws CException
 	 */
-	public function filter($in,$out,&$consumed,$closing)
+	protected function readChunkSize($connection)
 	{
-		while($bucket=stream_bucket_make_writeable($in)) {
-			$offset=0;
-			$outbuffer='';
-			while($offset < $bucket->datalen) {
-				switch($this->_state) {
-					case self::STATE_CHUNKLINE:
-						//@todo check for incomplete chunklines
-						$newOffset=strpos($bucket->data,"\r\n",$offset);
-						$chunkLine=substr($bucket->data,$offset,$newOffset-$offset);
-						@list($chunkSize,$chunkExt)=explode(';',$chunkLine,2);
-						if(!empty($chunkExt))
-							Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CDechunkFilter');
-						$chunkSize=trim($chunkSize);
-						if(!ctype_xdigit($chunkSize))
-							throw new CException(Yii::t('yii','Found an invalid chunksize in stream: {chunkSize}',array('{chunkSize}'=>$chunkSize)));
-
-						$this->_chunkSize=hexdec($chunkSize);
-
-						if($this->_chunkSize==0)
-							$this->_state=self::STATE_TRAILER;
-						else
-							$this->_state=self::STATE_DATACHUNK;
-
-						$offset=$newOffset+2;
-						break;
-					case self::STATE_DATACHUNK:
-						$outbuffer.=substr($bucket->data,$offset,$this->_chunkSize);
-						$offset+=($this->_chunkSize+2);
-						if($offset > $bucket->datalen){
-							$this->_chunkSize=$offset-$bucket->datalen-2;
-							$this->_state=self::STATE_DATACHUNK;
-						} else
-							$this->_state=self::STATE_CHUNKLINE;
-						break;
-					case self::STATE_TRAILER:
-						if(isset($this->params['trailers'])){
-							if($closing)
-								$this->params['trailers'].=substr($bucket->data,$offset,$bucket->datalen-$offset-2);
-							else
-								$this->params['trailers'].=substr($bucket->data,$offset,$bucket->datalen-$offset);
-						}
-						$offset=$bucket->datalen;
-						break;
-				}
-			}
-			$consumed+=$bucket->datalen;
-			$bucket->data=$outbuffer;
-			stream_bucket_append($out,$bucket);
-		}
-		return PSFS_PASS_ON;
+		if(($chunkLine=stream_get_line($connection,$this->maxLineLength,CHttpClient::CRLF))===false)
+			throw new CException(Yii::t('yii','Could not read chunkline from stream'));
+		@list($chunkSize,$chunkExt)=explode(';',$chunkLine,2);
+		if(!empty($chunkExt))
+			Yii::log(Yii::t('yii','Found chunk extension in stream: {chunkext}',array('{chunkext}'=>$chunkExt)),CLogger::LEVEL_INFO,'system.web.CHttpClientStreamConnector');
+		$chunkSize=trim($chunkSize);
+		if(!ctype_xdigit($chunkSize))
+			throw new CException(Yii::t('yii','Found an invalid chunksize in stream: {chunkSize}',array('{chunkSize}'=>$chunkSize)));
+		return hexdec($chunkSize);
 	}
 }
