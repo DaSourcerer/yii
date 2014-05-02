@@ -676,7 +676,14 @@ class CHttpClientRequest extends CHttpClientMessage
 	 */
 	public function getRequestLine()
 	{
-		return sprintf('%s %s HTTP/%.1f',$this->method,'/'.ltrim($this->url->path,'/'),$this->httpVersion).CHttpClient::CRLF;
+		$path=$this->url->path;
+		if(!empty($this->url->params))
+			$path.='?'.$this->url->query;
+		$path='/'.ltrim($path,'/');
+		if($this->httpVersion<1)
+			return sprintf('GET %s',$path).CHttpClient::CRLF;
+		else
+			return sprintf('%s %s HTTP/%.1f',$this->method,$path,$this->httpVersion).CHttpClient::CRLF;
 	}
 
 	/**
