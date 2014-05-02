@@ -595,6 +595,17 @@ class CHttpClientRequest extends CHttpClientMessage
 	/** @var CHttpClient */
 	public $client;
 
+	/**
+	 * Client certificate location
+	 * @var string
+	 */
+	public $clientCertificate;
+
+	/**
+	 * @var string
+	 */
+	public $clientCertificatePassphrase;
+
 	private $_url;
 
 	/**
@@ -716,6 +727,13 @@ class CHttpClientRequest extends CHttpClientMessage
 	public function disableCaching()
 	{
 		$this->_cacheable=false;
+		return $this;
+	}
+
+	public function setClientCertificate($cert,$passphrase)
+	{
+		$this->clientCertificate=$cert;
+		$this->clientCertificatePassphrase=$passphrase;
 		return $this;
 	}
 
@@ -941,7 +959,14 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 		if($this->persistent)
 			$flags|=STREAM_CLIENT_PERSISTENT;
 
-		if(($connection=stream_socket_client($remoteSocket,$errno,$errstr,$this->timeout,$flags,$this->streamContext))===false)
+		$streamContext=$this->streamContext;
+
+		if($request->clientCertificate && !stream_context_set_option($streamContext,'ssl','local_cert',$request->clientCertificate))
+			throw new CExcpetion(Yii::t('yii','Failed to set client certificate'));
+		else if($request->clientCertificate && $request->clientCertificatePassphrase && !stream_context_set_option($streamContext,'ssl','passphrase',$request->clientCertificatePassphrase))
+			throw new CExcpetion(Yii::t('yii','Failed to set client certificate passphrase'));
+
+		if(($connection=stream_socket_client($remoteSocket,$errno,$errstr,$this->timeout,$flags,$streamContext))===false)
 			throw new CException(Yii::t('yii','Failed to connect to {url} ({errno}): {errstr}',array('{url}'=>$remoteSocket,'{errno}'=>$errno,'{errstr}'=>$errstr)));
 
 		stream_set_write_buffer($connection,$this->bufferSize);
