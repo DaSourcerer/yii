@@ -58,6 +58,11 @@ class CHttpClient extends CApplicationComponent
 	public $headers=array();
 
 	/**
+	 * @var string
+	 */
+	public $methodOverride=false;
+
+	/**
 	 * The user agent string with which CHttpClient will identify itself.
 	 *
 	 * @var string
@@ -202,6 +207,8 @@ class CHttpClient extends CApplicationComponent
 			throw new CException(Yii::t('yii','Unsupported protocol: {scheme}',array('{scheme}'=>$request->url->scheme)));
 		$request->headers->mergeWith($this->headers);
 		$request->client=$this;
+		if($this->methodOverride)
+			$request->overrideMethod($this->methodOverride);
 		return $this->connector->send($request);
 	}
 
@@ -741,6 +748,16 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		$this->clientCertificate=$cert;
 		$this->clientCertificatePassphrase=$passphrase;
+		return $this;
+	}
+
+	public function overrideMethod($header='X-HTTP-Method-Override')
+	{
+		if(!in_array(strtoupper($this->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD,CHttpClient::METHOD_POST)))
+		{
+			$this->headers->set($header,$this->method);
+			$this->method=CHttpClient::METHOD_POST;
+		}
 		return $this;
 	}
 
