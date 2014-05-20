@@ -109,7 +109,7 @@ class CUrl extends CComponent
 			//@todo Although parse_url() is pretty battle-hardened, there could be better ways to parse this.
 			//PEAR::Net_URL2 is using a regex supposedly copied from RFC 3986, Appendix B
 			if(($parsedUrl=@parse_url($url))===false)
-				throw new CException(Yii::t('Failed to parse URL {url}',array('{url}'=>$url)));
+				throw new CException(Yii::t('yii','Failed to parse URL {url}',array('{url}'=>$url)));
 			$url=$parsedUrl;
 		}
 
