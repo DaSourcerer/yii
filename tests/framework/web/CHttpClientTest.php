@@ -1,5 +1,7 @@
 <?php
 
+use CHttpClientRequest;
+
 Yii::import('system.web.CHttpClient',true);
 
 class CHttpClientTestCase extends CTestCase
@@ -49,12 +51,12 @@ class CHttpClientTestCase extends CTestCase
 	{
 		$request=$this->_client->get('http://www.example.org/');
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_GET, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_GET, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 
-		$request=$this->_client->get(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
+		$request=$this->_client->get(new CHttpClientRequest('http://www.example.org/',CHttpClientRequest::METHOD_CONNECT));
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_GET, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_GET, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 	}
 
@@ -62,12 +64,12 @@ class CHttpClientTestCase extends CTestCase
 	{
 		$request=$this->_client->head('http://www.example.org/');
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_HEAD, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_HEAD, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 
-		$request=$this->_client->head(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
+		$request=$this->_client->head(new CHttpClientRequest('http://www.example.org/',CHttpClientRequest::METHOD_CONNECT));
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_HEAD, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_HEAD, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 	}
 
@@ -75,12 +77,12 @@ class CHttpClientTestCase extends CTestCase
 	{
 		$request=$this->_client->delete('http://www.example.org/');
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_DELETE, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_DELETE, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 
-		$request=$this->_client->delete(new CHttpClientRequest('http://www.example.org/', CHttpClient::METHOD_CONNECT));
+		$request=$this->_client->delete(new CHttpClientRequest('http://www.example.org/',CHttpClientRequest::METHOD_CONNECT));
 		$this->assertInstanceOf('CHttpClientRequest', $request);
-		$this->assertEquals(CHttpClient::METHOD_DELETE, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_DELETE, $request->method);
 		$this->assertEquals('http://www.example.org/', $request->url->__toString());
 	}
 
@@ -89,13 +91,13 @@ class CHttpClientTestCase extends CTestCase
 		$request=new CHttpClientRequest('http://www.example.org/');
 		$response=$this->_client->send($request);
 		$this->assertInstanceOf('CHttpClientResponse', $response);
-		$this->assertEquals(CHttpClient::METHOD_GET, $this->_client->connector->getRequest()->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_GET, $this->_client->connector->getRequest()->method);
 		$this->assertSame($request, $this->_client->connector->getRequest());
 		$this->assertSame($response, $this->_client->connector->getResponse());
 
 		$response=$this->_client->send(array(
 			'url'=>'http://www.example.org/',
-			'method'=>CHttpClient::METHOD_HEAD,
+			'method'=>CHttpClientRequest::METHOD_HEAD,
 			'httpVersion'=>1.0,
 			'headers'=>array(
 				'X-Foo'=>'bar',
@@ -106,7 +108,7 @@ class CHttpClientTestCase extends CTestCase
 		$this->assertInstanceOf('CHttpClientResponse', $response);
 		$this->assertInstanceOf('CHttpClientRequest', $request);
 		$this->assertEquals('http://www.example.org/', $request->url);
-		$this->assertEquals(CHttpClient::METHOD_HEAD, $request->method);
+		$this->assertEquals(CHttpClientRequest::METHOD_HEAD, $request->method);
 		$this->assertEquals(1.0, $request->httpVersion);
 		$this->assertNotEmpty($request->headers);
 		$this->assertEquals('bar', $request->headers['X-Foo']);

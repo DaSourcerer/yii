@@ -42,16 +42,6 @@ class CHttpClient extends CApplicationComponent
 	 */
 	const USER_AGENT_STRING_FULL='Mozilla/5.0 (compatible; Yii/{version}; {connector}/{connectorVersion}; +http://yiiframework.com)';
 
-	const METHOD_GET='GET';
-	const METHOD_HEAD='HEAD';
-	const METHOD_POST='POST';
-	const METHOD_PUT='PUT';
-	const METHOD_DELETE='DELETE';
-	const METHOD_TRACE='TRACE';
-	const METHOD_OPTIONS='OPTIONS';
-	const METHOD_CONNECT='CONNECT';
-	const METHOD_PATCH='PATCH';
-
 	/**
 	 * @var array a set of headers added to each request
 	 */
@@ -112,7 +102,7 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public function get($request)
 	{
-		return $this->craftRequest($request,self::METHOD_GET);
+		return $this->craftRequest($request,CHttpClientRequest::METHOD_GET);
 	}
 
 	/**
@@ -128,7 +118,7 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public function head($request)
 	{
-		return $this->craftRequest($request,self::METHOD_HEAD);
+		return $this->craftRequest($request,CHttpClientRequest::METHOD_HEAD);
 	}
 
 	/**
@@ -145,7 +135,7 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public function post($request,$body=null,$mimeType=null)
 	{
-		$request=$this->craftRequest($request,self::METHOD_POST);
+		$request=$this->craftRequest($request,CHttpClientRequest::METHOD_POST);
 		if($body instanceof CHttpMessageBody)
 			$request->body=$body;
 		return $request;
@@ -167,7 +157,7 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public function put($request,$body=null,$mimeType=null)
 	{
-		$request=$this->craftRequest($request,self::METHOD_PUT);
+		$request=$this->craftRequest($request,CHttpClientRequest::METHOD_PUT);
 		if($body instanceof CHttpMessageBody)
 			$request->body=$body;
 		return $request;
@@ -185,7 +175,7 @@ class CHttpClient extends CApplicationComponent
 	 */
 	public function delete($request)
 	{
-		return $this->craftRequest($request,self::METHOD_DELETE);
+		return $this->craftRequest($request,CHttpClientRequest::METHOD_DELETE);
 	}
 
 	/**
@@ -597,8 +587,17 @@ class CHttpClientResponse extends CHttpClientMessage
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
+	const METHOD_GET='GET';
+	const METHOD_HEAD='HEAD';
+	const METHOD_POST='POST';
+	const METHOD_PUT='PUT';
+	const METHOD_DELETE='DELETE';
+	const METHOD_TRACE='TRACE';
+	const METHOD_OPTIONS='OPTIONS';
+	const METHOD_CONNECT='CONNECT';
+	const METHOD_PATCH='PATCH';
 	/** @var string */
-	public $method=CHttpClient::METHOD_GET;
+	public $method=self::METHOD_GET;
 	/** @var CHttpClient */
 	public $client;
 
@@ -631,7 +630,7 @@ class CHttpClientRequest extends CHttpClientMessage
 			return Yii::app()->http->send($this);
 	}
 
-	public function __construct($url=null,$method=CHttpClient::METHOD_GET)
+	public function __construct($url=null,$method=self::METHOD_GET)
 	{
 		$this->url=$url;
 		$this->method=$method;
@@ -753,10 +752,10 @@ class CHttpClientRequest extends CHttpClientMessage
 
 	public function overrideMethod($header='X-HTTP-Method-Override')
 	{
-		if(!in_array(strtoupper($this->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD,CHttpClient::METHOD_POST)))
+		if(!in_array(strtoupper($this->method),array(self::METHOD_GET,self::METHOD_HEAD,self::METHOD_POST)))
 		{
 			$this->headers->set($header,$this->method);
-			$this->method=CHttpClient::METHOD_POST;
+			$this->method=self::METHOD_POST;
 		}
 		return $this;
 	}
@@ -770,7 +769,7 @@ class CHttpClientRequest extends CHttpClientMessage
 	{
 		if($this->httpVersion < 1)
 			return false;
-		if(!in_array(strtoupper($this->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD)))
+		if(!in_array(strtoupper($this->method),array(self::METHOD_GET,self::METHOD_HEAD)))
 			return false;
 		return $this->_cacheable;
 	}
@@ -1130,7 +1129,7 @@ class CHttpClientStreamConnector extends CBaseHttpClientConnector
 				$host.=':'.$request->url->port;
 			$request->headers->set('Host',$host);
 			$request->headers->set('Connection',($this->persistent)?'keep-alive':'close');
-			if(!in_array(strtoupper($request->method),array(CHttpClient::METHOD_GET,CHttpClient::METHOD_HEAD)))
+			if(!in_array(strtoupper($request->method),array(CHttpClientRequest::METHOD_GET,CHttpClientRequest::METHOD_HEAD)))
 				$request->headers->set('Date',gmdate('D, d M Y H:i:s').' GMT');
 			if(isset($request->url->user) && isset($request->url->pass))
 				$request->headers->set('Authorization','Basic '.base64_encode($request->url->user.':'.$request->url->pass));
