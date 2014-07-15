@@ -1,7 +1,5 @@
 <?php
 
-use CHttpClientRequest;
-
 Yii::import('system.web.CHttpClient',true);
 
 class CHttpClientTestCase extends CTestCase
