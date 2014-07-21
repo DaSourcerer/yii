@@ -32,7 +32,7 @@
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CUrl extends CComponent
 {

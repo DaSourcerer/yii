@@ -18,7 +18,7 @@
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHttpClient extends CApplicationComponent
 {
@@ -272,7 +272,7 @@ class CHttpClient extends CApplicationComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 abstract class CHttpClientMessage extends CComponent
 {
@@ -346,7 +346,7 @@ abstract class CHttpClientMessage extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHttpMessageBody extends CComponent
 {
@@ -445,7 +445,7 @@ class CHttpMessageBody extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHttpClientResponse extends CHttpClientMessage
 {
@@ -583,7 +583,7 @@ class CHttpClientResponse extends CHttpClientMessage
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHttpClientRequest extends CHttpClientMessage
 {
@@ -785,7 +785,7 @@ class CHttpClientRequest extends CHttpClientMessage
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHeaderCollection extends CMap
 {
@@ -868,7 +868,7 @@ class CHeaderCollection extends CMap
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 abstract class CBaseHttpClientConnector extends CComponent
 {
@@ -914,7 +914,7 @@ abstract class CBaseHttpClientConnector extends CComponent
  *
  * @author Da:Sourcerer <webmaster@dasourcerer.net>
  * @package system.web
- * @since 1.1.15
+ * @since 1.1.16
  */
 class CHttpClientStreamConnector extends CBaseHttpClientConnector
 {

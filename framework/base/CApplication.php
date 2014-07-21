@@ -535,7 +535,7 @@ abstract class CApplication extends CModule
 	/**
 	 * Returns the HTTP client component.
 	 * @return CHttpClient the HTTP client component
-	 * @since 1.1.15
+	 * @since 1.1.16
 	 */
 	public function getHttp()
 	{
